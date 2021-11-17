@@ -1,0 +1,8 @@
+syntax = "proto3";
+import "push.ext.proto"; 
+package pb;
+
+service ConnectInt { 
+  // 发送消息 
+  rpc DeliverMessage (PushMsgReq) returns (PushMsgReply); 
+}

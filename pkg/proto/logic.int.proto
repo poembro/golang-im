@@ -1,0 +1,65 @@
+syntax = "proto3";
+import "push.ext.proto"; 
+package pb;
+
+service LogicInt {
+  // 登录
+  rpc ConnSignIn (ConnSignInReq) returns (ConnSignInResp); 
+  // 发送消息
+  rpc SendMessage (PushMsgReq) returns (PushMsgReply); 
+  // 设备收到消息回执
+  rpc MessageACK (MessageACKReq) returns (MessageACKResp);
+  // 同步历史聊天记录
+  rpc Sync (SyncReq) returns (SyncResp);
+  
+  // 消息存储  TODO
+  // 在线人数  TODO 
+  
+  // 设备离线
+  rpc Offline (OfflineReq) returns (OfflineResp);
+  // 服务停止
+  rpc ServerStop (ServerStopReq) returns (ServerStopResp);
+}
+
+message ConnSignInReq {
+  bytes Body = 1; // body 是1个json字符串 包含了设备id 双方头像昵称等信息
+  string conn_addr = 2; // 服务器地址
+  string client_addr = 3; // 客户端地址
+}
+message ConnSignInResp {
+  int64 device_id = 1; // 设备id  用来区分一个用户多个设备 之间消息同步问题
+  int64 user_id = 2; // 用户id
+}
+
+message MessageACKReq {
+  int64 user_id = 1; // 用户id
+  int64 device_id = 2; // 设备id
+  int64 device_ack = 3; // 设备收到消息的确认号
+  int64 receive_time = 4; // 消息接收时间戳，精确到毫秒
+}
+message MessageACKResp {
+}
+
+message SyncReq {
+  int64 user_id = 1; // 用户id
+  int64 device_id = 2; // 设备id
+  int64 seq = 3; // 客户端已经同步的序列号
+}
+message SyncResp {
+  bytes messages = 1; // 消息列表
+  bool has_more = 2; // 是否有更多数据
+}
+
+message OfflineReq {
+  int64 user_id = 1; // 用户id
+  int64 device_id = 2; // 设备id
+  string client_addr = 3; // 客户端地址
+}
+message OfflineResp {
+}
+
+message ServerStopReq {
+  string conn_addr = 1;
+}
+message ServerStopResp {
+}

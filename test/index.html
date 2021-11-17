@@ -1,0 +1,112 @@
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>client demo</title>
+    <script src="client.js"></script>
+    <script>
+      var onStart = function () {
+        var url = document.getElementById('url').value;
+        var mid = document.getElementById('mid').value;
+        var room_id = document.getElementById('room_id').value;
+        var platform = document.getElementById('platform').value;
+        var accepts = document.getElementById('accepts').value;
+        
+        if (!url) {
+            return alert("请输入 url")
+        } 
+        if (!mid) {
+            return alert("请输入mid")
+        }
+        if (!room_id) {
+            return alert("请输入 room_id")
+        }
+        if (!platform) {
+            return alert("请输入 platform")
+        }
+        if (!accepts) {
+            return alert("请输入 accepts")
+        }
+
+        var client = new MyClient({
+          notify: function(data) {
+            console.log(data);
+            // alert(JSON.stringify(data));
+          },
+          url:url,
+          mid:mid,
+          room_id:room_id,
+          platform:platform,
+          accepts:accepts,
+        });
+
+        window.Mywebsoket = client
+      }
+
+      var onSendMsg = function(){
+        var obj = window.Mywebsoket
+        if (!obj) {
+            return console.log("先启动 建立连接");
+        }
+
+        var msg = document.getElementById('msg').value;
+        if (!msg) {
+            return alert("请输入 msg")
+        }
+        obj.sendMsg(msg)
+      }
+    </script>
+    <style type="text/css">
+        span{ display:block;}
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>websocket</h1>
+      <h2>status:</h2>
+      <span id="status"></span>
+    </div>
+
+    <div class="body">
+      <div> 
+        <ul>
+          <li> 
+              url: <input id="url" type="text" value="ws://localhost:8081/ws"/><br />  
+          </li>
+          
+          <li> 
+              mid: <input id="mid" type="text" value="123"/><br />  
+          </li>
+
+          <li> 
+              room_id: <input id="room_id" type="text" value="live://1000"/><br />  
+          </li>
+
+          <li> 
+              platform: <input id="platform" type="text" value="web"/><br />  
+          </li>
+
+          <li>
+              accepts: <input id="accepts" type="text" value="1000,1001,1002"/><br />  
+          </li>
+        </ul>  
+      </div>
+    
+      <h2>
+        <button onclick="onStart();">启动</button><br/>
+        输入消息: <input id="msg" type="text" value=""/>    <button onclick="onSendMsg();">发送</button><br/>
+      </h2>
+
+      <hr/>
+      <h2>命令行</h2>
+      <div>
+          <p>推送到房间   go test ./... -run=TestLogicIntServer_PushRoom</p> 
+      </div>
+      <h2>message:</h2>
+      <div id="box"></div>
+    </div>
+  </body>
+
+
+</html>

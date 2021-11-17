@@ -1,0 +1,9 @@
+.idea 
+.env
+config.local.toml
+go.sum 
+.DS_Store
+cmd/connect/nohup.out
+cmd/logic/nohup.out
+cmd/connect/connect
+cmd/logic/logic
