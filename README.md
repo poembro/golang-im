@@ -155,4 +155,4 @@ github.com/gogo/protobuf v1.3.2 // indirect
  
 ## 感谢
 
-#### 感谢 gim, goim 等开源项目   注:哪里有冒犯到原作者的地方请及时指正
+#### 感谢 gim, goim 等开源项目,有冒犯到原作者的地方请及时指正
