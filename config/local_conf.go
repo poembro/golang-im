@@ -16,7 +16,7 @@ func initLocalConf(ip string) {
 	// connect 服务相关配置
 	Connect = ConnectConf{
 		TCPListenAddr: ":8090",       //外部TCP 监听8080 在使用
-		WSListenAddr:  ":8081",       //外部websocket监听8081 在使用
+		WSListenAddr:  ":7923",       //外部websocket监听8081 在使用
 		RPCListenAddr: ":50000",      //内部connect grpc服务监听50000 在使用
 		LocalAddr:     ip + ":50000", //connect服务本机局域网ip、端口,用来标识当前用户在哪个节点
 		RedisIP:       ip + ":6379",  //在使用

@@ -44,7 +44,7 @@
         var heartbeatInterval;
 
         function connect() {
-            var ws = new WebSocket('ws://localhost:8081/ws');
+            var ws = new WebSocket('ws://47.111.69.116:7923/ws');
             //var ws = new WebSocket(self.options.url); 
             ws.binaryType = 'arraybuffer';
             ws.onopen = function() {
