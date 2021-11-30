@@ -3,16 +3,14 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"golang-im/config"
 	"golang-im/pkg/grpclib/etcdv3"
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/keepalive"
-
-	"google.golang.org/grpc/resolver"
 )
 
 const (
@@ -39,15 +37,15 @@ var (
 )
 
 // InitLogicIntClient connect访问logic不需要知道具体访问哪个节点
-func InitLogicIntClient() {
-	r := etcdv3.NewDiscovery(config.Logic.EtcdIPs)
-	resolver.Register(r) //向resolver/resolver.go 中m变量追加参数和值 m[b.Scheme()] = b
+func InitLogicIntClient(schema, etcdaddr string) {
+	etcdv3.NewResolverV2(schema, etcdaddr, LogicIntSerName)
 
 	conn, err := grpc.DialContext(
 		context.TODO(),
-		fmt.Sprintf("%s:///%s", r.Scheme(), LogicIntSerName),
+		etcdv3.GetPrefix(schema, LogicIntSerName),
 		[]grpc.DialOption{
 			grpc.WithInsecure(), //禁用传输认证，没有这个选项必须设置一种认证方式
+			grpc.WithTimeout(time.Duration(5) * time.Second),
 			grpc.WithInitialWindowSize(grpcInitialWindowSize),
 			grpc.WithInitialConnWindowSize(grpcInitialConnWindowSize),
 			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxCallMsgSize)),
@@ -59,8 +57,7 @@ func InitLogicIntClient() {
 				PermitWithoutStream: true,
 			}),
 			grpc.WithUnaryInterceptor(interceptor), // 一元拦截器，适用于普通rpc连接
-			//当前不走配置 grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, db.EtcdCli.Scheme())),
-			grpc.WithBalancerName("weight"),
+			grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)),
 		}...)
 
 	if err != nil {
@@ -73,6 +70,7 @@ func InitLogicIntClient() {
 
 // InitConnectIntClient logic 访问 connect 服务最好知道是哪个节点
 func InitConnectIntClient(addr string) (pb.ConnectIntClient, error) {
+	// TODO 判断该addr 是否在服务发现列表里面
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second))
 	defer cancel()
 

@@ -59,11 +59,10 @@ func main() {
 		panic(err)
 	}
 
-	srv, err := etcdv3.NewServiceRegister(config.Logic.EtcdIPs, rpc.LogicIntSerName+"/"+config.Logic.LocalAddr, "1", 5)
+	err = etcdv3.Register(config.Global.GrpcSchema, config.Logic.EtcdIPs, config.Connect.LocalAddr, rpc.LogicIntSerName, 5)
 	if err != nil {
 		logger.Logger.Error("register service err ", zap.Error(err))
 	}
-	defer srv.Close()
 
 	logger.Logger.Info("rpc服务已经开启", zap.String("logic_rpc_server_ip_port", config.InternalIP()+config.Logic.RPCListenAddr))
 	err = server.Serve(listen)

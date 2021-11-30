@@ -7,10 +7,10 @@ import (
 )
 
 func initLocalConf(ip string) {
-	// 服务注册/发现配置
-	RPCAddr = RPCAddrConf{
-		ConnectRPCAddr: "poembro:///127.0.0.1:50000", //暂未使用
-		LogicRPCAddr:   "poembro:///127.0.0.1:50100", //暂未使用 内部logic服务的grpc ip端口 在connect服务中要用到该地址去请求
+	// 全局配置
+	Global = GlobalConf{
+		ProjectName: "golang-im 一个运行在[golang](#)上的实时通信软件。", //暂未使用
+		GrpcSchema:  "goim",
 	}
 
 	// connect 服务相关配置
@@ -31,7 +31,7 @@ func initLocalConf(ip string) {
 		RedisPassword: "",
 		RPCListenAddr: ":50100", //内部logic grpc服务监听50100 在使用
 		LocalAddr:     ip + ":50100",
-		EtcdIPs:       []string{"http://127.0.0.1:2379", "http://127.0.0.1:2479", "http://127.0.0.1:2579"},
+		EtcdIPs:       "http://" + ip + ":2379,http://" + ip + ":2479,http://" + ip + ":2579",
 	}
 
 	logger.Level = zap.DebugLevel

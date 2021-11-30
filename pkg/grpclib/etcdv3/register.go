@@ -2,82 +2,112 @@ package etcdv3
 
 import (
 	"context"
-	"log"
-	"time"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
 
 	"go.etcd.io/etcd/clientv3"
 )
 
-// ServiceRegister 创建租约注册服务
-type ServiceRegister struct {
-	cli     *clientv3.Client //etcd client
-	leaseID clientv3.LeaseID //租约ID
-	//租约keepalieve相应chan
-	keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
-	key           string //key
-	weight        string //value
+type RegEtcd struct {
+	cli    *clientv3.Client
+	ctx    context.Context
+	cancel context.CancelFunc
+	key    string
 }
 
-// NewServiceRegister 新建注册服务  参数1:etcd地址    参数2:权重     参数3：租约多少秒后超时
-func NewServiceRegister(endpoints []string, addr, weigit string, lease int64) (*ServiceRegister, error) {
+var rEtcd *RegEtcd
+
+// "%s:///%s/"
+func GetPrefix(schema, serviceName string) string {
+	return fmt.Sprintf("%s:///%s/", schema, serviceName)
+}
+
+// "%s:///%s"
+func GetPrefix4Unique(schema, serviceName string) string {
+	return fmt.Sprintf("%s:///%s", schema, serviceName)
+}
+
+// "%s:///%s/" ->  "%s:///%s:ip:port"
+func RegisterEtcd4Unique(schema, etcdAddr, myHost string, myPort int, serviceName string, ttl int) error {
+	serviceName = serviceName + ":" + net.JoinHostPort(myHost, strconv.Itoa(myPort))
+	return RegisterEtcd(schema, etcdAddr, myHost, myPort, serviceName, ttl)
+}
+
+func Register(schema, etcdAddr, ipPort, serviceName string, ttl int) error {
+	if strings.Index(ipPort, ":") == -1 {
+		return fmt.Errorf("localhost addr and port format error ")
+	}
+	arr := strings.Split(ipPort, ":")
+	if len(arr) != 2 {
+		return fmt.Errorf("strings.Split(ipPort, ':')  " + ipPort)
+	}
+	ip := arr[0]
+	port, err := strconv.Atoi(arr[1])
+	if err != nil {
+		return fmt.Errorf("port not int error ")
+	}
+	// TODO 可能更多 服务注册与发现 的持久化工具
+	return RegisterEtcd(schema, etcdAddr, ip, port, serviceName, ttl)
+}
+
+//etcdAddr separated by commas  注册服务
+func RegisterEtcd(schema, etcdAddr, myHost string, myPort int, serviceName string, ttl int) error {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   endpoints,
-		DialTimeout: 5 * time.Second,
+		Endpoints: strings.Split(etcdAddr, ","),
 	})
+	fmt.Println("RegisterEtcd")
 	if err != nil {
-		log.Fatal(err)
+		//		return fmt.Errorf("grpclb: create clientv3 client failed: %v", err)
+		return fmt.Errorf("create etcd clientv3 client failed, errmsg:%v, etcd addr:%s", err, etcdAddr)
 	}
 
-	srv := &ServiceRegister{
+	//lease
+	ctx, cancel := context.WithCancel(context.Background())
+	resp, err := cli.Grant(ctx, int64(ttl))
+	if err != nil {
+		return fmt.Errorf("grant failed")
+	}
+
+	//  schema:///serviceName/ip:port ->ip:port
+	serviceValue := net.JoinHostPort(myHost, strconv.Itoa(myPort))
+	serviceKey := GetPrefix(schema, serviceName) + serviceValue
+
+	//set key->value
+	if _, err := cli.Put(ctx, serviceKey, serviceValue, clientv3.WithLease(resp.ID)); err != nil {
+		return fmt.Errorf("put failed, errmsg:%v， key:%s, value:%s", err, serviceKey, serviceValue)
+	}
+
+	//keepalive
+	kresp, err := cli.KeepAlive(ctx, resp.ID)
+	if err != nil {
+		return fmt.Errorf("keepalive faild, errmsg:%v, lease id:%d", err, resp.ID)
+	}
+
+	go func() {
+	FLOOP:
+		for {
+			select {
+			case _, ok := <-kresp:
+				if ok == true {
+				} else {
+					break FLOOP
+				}
+			}
+		}
+	}()
+
+	rEtcd = &RegEtcd{ctx: ctx,
 		cli:    cli,
-		key:    "/" + schema + "/" + addr,
-		weight: weigit,
-	}
+		cancel: cancel,
+		key:    serviceKey}
 
-	// 申请租约设置时间keepalive
-	if err := srv.putKeyWithLease(lease); err != nil {
-		return nil, err
-	}
-
-	return srv, nil
-}
-
-// putKeyWithLease 设置租约
-func (s *ServiceRegister) putKeyWithLease(lease int64) error {
-	//设置租约时间
-	resp, err := s.cli.Grant(context.Background(), lease)
-	if err != nil {
-		return err
-	}
-	//注册服务并绑定租约
-	_, err = s.cli.Put(context.Background(), s.key, s.weight, clientv3.WithLease(resp.ID))
-	if err != nil {
-		return err
-	}
-	//设置续租 定期发送需求请求
-	leaseRespChan, err := s.cli.KeepAlive(context.Background(), resp.ID)
-
-	if err != nil {
-		return err
-	}
-	s.leaseID = resp.ID
-	s.keepAliveChan = leaseRespChan
-	log.Printf("Put key:%s  weight:%s  success!", s.key, s.weight)
 	return nil
 }
 
-// ListenLeaseRespChan 监听 续租情况
-func (s *ServiceRegister) ListenLeaseRespChan() {
-	for leaseKeepResp := range s.keepAliveChan {
-		log.Println("续约成功", leaseKeepResp)
-	}
-}
-
-// Close 注销服务
-func (s *ServiceRegister) Close() error {
-	if _, err := s.cli.Revoke(context.Background(), s.leaseID); err != nil {
-		return err
-	}
-
-	return s.cli.Close()
+func UnRegisterEtcd() {
+	//delete
+	rEtcd.cancel()
+	rEtcd.cli.Delete(rEtcd.ctx, rEtcd.key)
 }

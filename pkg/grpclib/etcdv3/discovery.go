@@ -2,134 +2,251 @@ package etcdv3
 
 import (
 	"context"
-	"log"
-	"strconv"
+	"fmt"
+
+	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/mvcc/mvccpb"
+
+	//"google.golang.org/genproto/googleapis/ads/googleads/v1/services"
 	"strings"
 	"sync"
 	"time"
 
-	"golang-im/pkg/grpclib/weight"
-
-	"github.com/coreos/etcd/mvcc/mvccpb"
-	"go.etcd.io/etcd/clientv3"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/resolver"
 )
 
-const schema = "poembro"
-
-type Discovery struct {
-	cli        *clientv3.Client //etcd client
-	cc         resolver.ClientConn
-	serverList sync.Map //服务列表
-	prefix     string   //监视的前缀
+type Resolver struct {
+	cc                 resolver.ClientConn
+	serviceName        string
+	grpcClientConn     *grpc.ClientConn
+	cli                *clientv3.Client
+	schema             string
+	etcdAddr           string
+	watchStartRevision int64
 }
 
-// NewDiscovery  新建服务发现
-func NewDiscovery(endpoints []string) resolver.Builder {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   endpoints,
-		DialTimeout: 5 * time.Second,
+var (
+	nameResolver        = make(map[string]*Resolver)
+	rwNameResolverMutex sync.RWMutex
+)
+
+func NewResolver(schema, etcdAddr, serviceName string) (*Resolver, error) {
+	etcdCli, err := clientv3.New(clientv3.Config{
+		Endpoints: strings.Split(etcdAddr, ","),
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &Discovery{
-		cli: cli,
-	}
-}
-
-/*
-grpc服务发现使用  https://blog.csdn.net/weixin_39838758/article/details/111103014
-
-1.在grpc.Dial() 之前 调用 resolver.Register(db.EtcdCli) 表示向resolver/resolver.go 中m变量追加参数和值 m[b.Scheme()] = b
-2.创建resolver 用来解析服务端的地址，过程中 newCCResolverWrapper  方法里调用的 Discovery.Build(x,x)
-3.将第一次从ETCD GET方式获取的所有节点拿出来作为切片 丢给cc.UpdateState方法
-4.并且每个节点 都将 构建/new 1个 resolver.Address 结构 其中该结构有个参数Attributes 存放着权重值
-
-5.由于调用了 NewDiscovery方法 以至于 weight.go文件中 balancer.Register(newBuilder()) 被执行
-grpc客户端参数中再指定使用 grpc.WithBalancerName("weight") 作为路由选择器
-6.于是 rrPickerBuilder.Build(info) 被隐式调用了 其中info 里面就是 resolver.Address 结构 这里就可以取出 权重值
-*/
-
-// Build 初始构建 实现接口中固定的方法
-func (s *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
-	s.cc = cc
-	s.prefix = "/" + target.Scheme + "/" + target.Endpoint + "/"
-	resp, err := s.cli.Get(context.Background(), s.prefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
-	for _, ev := range resp.Kvs {
-		s.Set(string(ev.Key), string(ev.Value))
+
+	var r Resolver
+	r.serviceName = serviceName
+	r.cli = etcdCli
+	r.schema = schema
+	r.etcdAddr = etcdAddr
+	resolver.Register(&r)
+
+	conn, err := grpc.Dial(
+		GetPrefix(schema, serviceName),
+		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)),
+		grpc.WithInsecure(), //禁用传输认证，没有这个选项必须设置一种认证方式
+		grpc.WithTimeout(time.Duration(5)*time.Second),
+	)
+	if err == nil {
+		r.grpcClientConn = conn
 	}
-	// 如果有固定地址的resolver则直接写死, 没有则从etcd取
-	// cc.UpdateState(resolver.State{Addresses: []resolver.Address{{Addr: r.target.Endpoint}}})
-	cc.UpdateState(resolver.State{Addresses: s.Gets()})
-
-	go s.watcher() // 监视前缀，修改变更的server 地址
-	return s, nil
+	return &r, err
 }
 
-// ResolveNow 监视目标更新
-func (s *Discovery) ResolveNow(rn resolver.ResolveNowOptions) {
-	//log.Println("监视目标更新 ResolveNow")
+func NewResolverV2(schema, etcdAddr, serviceName string) (*Resolver, error) {
+	etcdCli, err := clientv3.New(clientv3.Config{
+		Endpoints: strings.Split(etcdAddr, ","),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var r Resolver
+	r.serviceName = serviceName
+	r.cli = etcdCli
+	r.schema = schema
+	r.etcdAddr = etcdAddr
+	resolver.Register(&r) //向resolver/resolver.go 中m变量追加参数和值 m[b.Scheme()] = b
+
+	return &r, err
 }
 
-// Scheme 实现接口中固定的方法, 如果不实现这个方法 默认名字叫做 passthrough
-func (s *Discovery) Scheme() string {
-	return schema
+func (r1 *Resolver) ResolveNow(rn resolver.ResolveNowOptions) {
 }
 
-// Close 关闭
-func (s *Discovery) Close() {
-	s.cli.Close()
+func (r1 *Resolver) Close() {
 }
 
-// watcher 监听前缀
-func (s *Discovery) watcher() {
-	ch := s.cli.Watch(context.Background(), s.prefix, clientv3.WithPrefix())
-	//log.Printf("watching prefix:%s now...", s.prefix)  //watching prefix:/grpclb/connectint_grpc_service/ now...
-	for resp := range ch {
-		for _, ev := range resp.Events {
+//调用
+/*
+	grpcCons := getcdv3.GetConn4Unique(config.Config.Etcd.EtcdSchema, strings.Join(config.Config.Etcd.EtcdAddr, ","), config.Config.RpcRegisterName.OpenImOnlineMessageRelayName)
+	//Online push message
+	log.InfoByKv("test", sendPbData.OperationID, "len  grpc", len(grpcCons), "data", sendPbData)
+	for _, v := range grpcCons {
+		msgClient := pbRelay.NewOnlineMessageRelayServiceClient(v)
+		reply, err := msgClient.MsgToUser(context.Background(), sendPbData)
+		if err != nil {
+			log.InfoByKv("push data to client rpc err", sendPbData.OperationID, "err", err)
+		}
+		if reply != nil && reply.Resp != nil && err == nil {
+			wsResult = append(wsResult, reply.Resp...)
+		}
+	}
+*/
+func GetConn(schema, etcdaddr, serviceName string) *grpc.ClientConn {
+	rwNameResolverMutex.RLock()
+	r, ok := nameResolver[schema+serviceName]
+	rwNameResolverMutex.RUnlock()
+	if ok {
+		return r.grpcClientConn
+	}
+
+	rwNameResolverMutex.Lock()
+	r, ok = nameResolver[schema+serviceName]
+	if ok {
+		rwNameResolverMutex.Unlock()
+		return r.grpcClientConn
+	}
+
+	r, err := NewResolver(schema, etcdaddr, serviceName)
+	if err != nil {
+		rwNameResolverMutex.Unlock()
+		return nil
+	}
+
+	nameResolver[schema+serviceName] = r
+	rwNameResolverMutex.Unlock()
+	return r.grpcClientConn
+}
+
+func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
+	if r.cli == nil {
+		return nil, fmt.Errorf("etcd clientv3 client failed, etcd:%s", target)
+	}
+	r.cc = cc
+
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	//     "%s:///%s"
+	prefix := GetPrefix(r.schema, r.serviceName)
+	// get key first
+	resp, err := r.cli.Get(ctx, prefix, clientv3.WithPrefix())
+	if err == nil {
+		var addrList []resolver.Address
+		for i := range resp.Kvs {
+			fmt.Println("init addr: ", string(resp.Kvs[i].Value))
+			addrList = append(addrList, resolver.Address{Addr: string(resp.Kvs[i].Value)})
+		}
+		r.cc.UpdateState(resolver.State{Addresses: addrList})
+		r.watchStartRevision = resp.Header.Revision + 1
+		go r.watch(prefix, addrList)
+	} else {
+		return nil, fmt.Errorf("etcd get failed, prefix: %s", prefix)
+	}
+
+	return r, nil
+}
+
+func (r *Resolver) Scheme() string {
+	return r.schema
+}
+
+func exists(addrList []resolver.Address, addr string) bool {
+	for _, v := range addrList {
+		if v.Addr == addr {
+			return true
+		}
+	}
+	return false
+}
+
+func remove(s []resolver.Address, addr string) ([]resolver.Address, bool) {
+	for i := range s {
+		if s[i].Addr == addr {
+			s[i] = s[len(s)-1]
+			return s[:len(s)-1], true
+		}
+	}
+	return nil, false
+}
+
+func (r *Resolver) watch(prefix string, addrList []resolver.Address) {
+	rch := r.cli.Watch(context.Background(), prefix, clientv3.WithPrefix(), clientv3.WithPrefix())
+	for n := range rch {
+		flag := 0
+		for _, ev := range n.Events {
 			switch ev.Type {
 			case mvccpb.PUT:
-				s.Set(string(ev.Kv.Key), string(ev.Kv.Value))
-				s.cc.UpdateState(resolver.State{Addresses: s.Gets()})
+				if !exists(addrList, string(ev.Kv.Value)) {
+					flag = 1
+					addrList = append(addrList, resolver.Address{Addr: string(ev.Kv.Value)})
+					fmt.Println("after add, new list: ", addrList)
+				}
 			case mvccpb.DELETE:
-				s.Del(string(ev.Kv.Key))
-				s.cc.UpdateState(resolver.State{Addresses: s.Gets()})
-			default:
-				// TODO
+				fmt.Println("remove addr key: ", string(ev.Kv.Key), "value:", string(ev.Kv.Value))
+				i := strings.LastIndexAny(string(ev.Kv.Key), "/")
+				if i < 0 {
+					return
+				}
+				t := string(ev.Kv.Key)[i+1:]
+				fmt.Println("remove addr key: ", string(ev.Kv.Key), "value:", string(ev.Kv.Value), "addr:", t)
+				if s, ok := remove(addrList, t); ok {
+					flag = 1
+					addrList = s
+					fmt.Println("after remove, new list: ", addrList)
+				}
 			}
+		}
+
+		if flag == 1 {
+			r.cc.UpdateState(resolver.State{Addresses: addrList})
+			fmt.Println("update: ", addrList)
 		}
 	}
 }
 
-// Set 设置服务地址
-func (s *Discovery) Set(key, val string) {
-	// 获取服务地址 去除前缀 /grpclb/connectint_grpc_service/
-	node := resolver.Address{Addr: strings.TrimPrefix(key, s.prefix)}
-	nodeWeight, err := strconv.Atoi(val) //获取服务地址权重
+func GetConn4Unique(schema, etcdaddr, servicename string) []*grpc.ClientConn {
+	gEtcdCli, err := clientv3.New(clientv3.Config{Endpoints: strings.Split(etcdaddr, ",")})
 	if err != nil {
-		nodeWeight = 1 // 非数字字符默认权重为1
+		fmt.Println("eeeeeeeeeeeee", err.Error())
+		return nil
 	}
-	// 把服务地址权重数值作为参数 追加到resolver.Address结构体的元数据中
-	node = weight.SetAddrInfo(node, weight.AddrInfo{Weight: nodeWeight})
-	s.serverList.Store(key, node)
-}
 
-// Del 删除服务地址
-func (s *Discovery) Del(key string) {
-	s.serverList.Delete(key)
-}
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	//     "%s:///%s"
+	prefix := GetPrefix4Unique(schema, servicename)
 
-// Gets 获取服务地址
-func (s *Discovery) Gets() []resolver.Address {
-	addrs := make([]resolver.Address, 0, 10)
-	s.serverList.Range(func(k, v interface{}) bool {
-		addrs = append(addrs, v.(resolver.Address))
-		return true
-	})
-	return addrs
+	resp, err := gEtcdCli.Get(ctx, prefix, clientv3.WithPrefix())
+	//  schema:///serviceName/ip:port   -> %s:ip:port
+	allService := make([]string, 0)
+	if err == nil {
+		for i := range resp.Kvs {
+			k := string(resp.Kvs[i].Key)
+
+			b := strings.LastIndex(k, "///")
+			k1 := k[b+len("///"):]
+
+			e := strings.Index(k1, "/")
+			k2 := k1[:e]
+			allService = append(allService, k2)
+		}
+	} else {
+		gEtcdCli.Close()
+		fmt.Println("rrrrrrrrrrr", err.Error())
+		return nil
+	}
+	gEtcdCli.Close()
+
+	allConn := make([]*grpc.ClientConn, 0)
+	for _, v := range allService {
+		r := GetConn(schema, etcdaddr, v)
+		allConn = append(allConn, r)
+	}
+
+	return allConn
 }

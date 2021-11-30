@@ -7,15 +7,15 @@ import (
 )
 
 var (
-	RPCAddr RPCAddrConf
+	Global  GlobalConf
 	Logic   LogicConf
 	Connect ConnectConf
 )
 
-// RPCAddrConf RPC配置
-type RPCAddrConf struct {
-	ConnectRPCAddr string
-	LogicRPCAddr   string
+// GlobalConf RPC配置
+type GlobalConf struct {
+	ProjectName string
+	GrpcSchema  string
 }
 
 // ConnectConf Connect配置
@@ -31,7 +31,7 @@ type ConnectConf struct {
 
 // LogicConf logic配置
 type LogicConf struct {
-	EtcdIPs       []string
+	EtcdIPs       string
 	MySQL         string
 	NSQIP         string
 	RedisIP       string

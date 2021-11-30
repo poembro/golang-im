@@ -29,7 +29,7 @@ func main() {
 	db.InitRedis(config.Connect.RedisIP, config.Connect.RedisPassword)
 
 	// 初始化Rpc Client
-	rpc.InitLogicIntClient()
+	rpc.InitLogicIntClient(config.Global.GrpcSchema, config.Logic.EtcdIPs)
 
 	// 启动TCP长链接服务器
 	go func() {
@@ -75,11 +75,10 @@ func main() {
 		panic(err)
 	}
 
-	srv, err := etcdv3.NewServiceRegister(config.Logic.EtcdIPs, rpc.ConnectIntSerName+"/"+config.Connect.LocalAddr, "1", 5)
+	err = etcdv3.Register(config.Global.GrpcSchema, config.Logic.EtcdIPs, config.Connect.LocalAddr, rpc.ConnectIntSerName, 5)
 	if err != nil {
 		logger.Logger.Error("register service err ", zap.Error(err))
 	}
-	defer srv.Close()
 
 	logger.Logger.Info("rpc服务已经开启", zap.String("connect_rpc_server_ip_port", config.InternalIP()+config.Connect.RPCListenAddr))
 	err = server.Serve(listener)
