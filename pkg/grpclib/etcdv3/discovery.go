@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
 
 	//"google.golang.org/genproto/googleapis/ads/googleads/v1/services"
 	"strings"
@@ -177,9 +177,9 @@ func remove(s []resolver.Address, addr string) ([]resolver.Address, bool) {
 
 func (r *Resolver) watch(prefix string, addrList []resolver.Address) {
 	rch := r.cli.Watch(context.Background(), prefix, clientv3.WithPrefix(), clientv3.WithPrefix())
-	for n := range rch {
+	for resp := range rch {
 		flag := 0
-		for _, ev := range n.Events {
+		for _, ev := range resp.Events {
 			switch ev.Type {
 			case mvccpb.PUT:
 				if !exists(addrList, string(ev.Kv.Value)) {

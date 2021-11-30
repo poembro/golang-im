@@ -190,6 +190,7 @@ func (c *Conn) SignIn(p *protocol.Proto) {
 			ClientAddr: c.GetAddr(),
 		})
 	if err != nil {
+		logger.Logger.Debug("SignIn", zap.Any("msg", err))
 		return
 	}
 	p.Op = protocol.OpAuthReply
