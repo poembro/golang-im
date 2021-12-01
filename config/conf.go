@@ -41,7 +41,7 @@ type LogicConf struct {
 }
 
 func init() {
-	ip := InternalIP()
+	ip := "0.0.0.0" // InternalIP()
 	env := os.Getenv("gim_env")
 	switch env {
 	case "dev":

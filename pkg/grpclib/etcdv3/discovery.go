@@ -63,6 +63,7 @@ func (r *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts r
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	//     "%s:///%s"
 	prefix := GetPrefix(r.schema, r.serviceName)
+        fmt.Println("-->" , prefix )
 	// get key first
 	resp, err := r.cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
@@ -71,8 +72,10 @@ func (r *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts r
 	}
 
 	for i := range resp.Kvs {
-		fmt.Println("etcd init addr: ", string(resp.Kvs[i].Value))
-		r.Set(string(resp.Kvs[i].Key), string(resp.Kvs[i].Value))
+              k := string(resp.Kvs[i].Key)
+              v := string(resp.Kvs[i].Value)
+              fmt.Println("-k->" , k, " ---v->",v )
+		r.Set(k, v)
 	}
 	r.cc.UpdateState(resolver.State{Addresses: r.Gets()})
 	r.watchStartRevision = resp.Header.Revision + 1
@@ -103,6 +106,7 @@ func (r *Discovery) watch(prefix string) {
 
 // Set 设置服务地址
 func (r *Discovery) Set(key, val string) {
+	fmt.Println("etcd serverList set addr : ", val)
 	r.serverList.Store(key, val)
 }
 
@@ -118,5 +122,6 @@ func (r *Discovery) Gets() []resolver.Address {
 		ips = append(ips, resolver.Address{Addr: v.(string)})
 		return true
 	})
+        fmt.Printf("etcd ---> %+v \r\n", ips)
 	return ips
 }

@@ -59,7 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	err = etcdv3.Register(config.Global.GrpcSchema, config.Logic.EtcdIPs, config.Connect.LocalAddr, rpc.LogicIntSerName, 5)
+	err = etcdv3.Register(config.Global.GrpcSchema, config.Logic.EtcdIPs, config.Logic.LocalAddr, rpc.LogicIntSerName, 5)
 	if err != nil {
 		logger.Logger.Error("register service err ", zap.Error(err))
 	}

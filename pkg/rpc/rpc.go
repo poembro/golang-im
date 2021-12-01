@@ -47,7 +47,7 @@ func InitLogicIntClient(schema, etcdaddr string) {
 
 	conn, err := grpc.DialContext(
 		context.TODO(),
-		etcdv3.GetPrefix(schema, LogicIntSerName),
+		etcdv3.GetPrefix4Unique(schema, LogicIntSerName),
 		[]grpc.DialOption{
 			grpc.WithInsecure(), //禁用传输认证，没有这个选项必须设置一种认证方式
 			grpc.WithTimeout(time.Duration(5) * time.Second),
