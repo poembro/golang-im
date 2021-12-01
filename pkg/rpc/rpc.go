@@ -2,14 +2,14 @@ package rpc
 
 import (
 	"context"
-	"fmt"
+//	"fmt"
 	"golang-im/pkg/grpclib/etcdv3"
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/balancer/roundrobin"
+//	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -38,8 +38,9 @@ var (
 
 // InitLogicIntClient connect访问logic不需要知道具体访问哪个节点
 func InitLogicIntClient(schema, etcdaddr string) {
-	etcdv3.NewResolverV2(schema, etcdaddr, LogicIntSerName)
+	conn := etcdv3.GetConn(schema, etcdaddr, LogicIntSerName)
 
+/*
 	conn, err := grpc.DialContext(
 		context.TODO(),
 		etcdv3.GetPrefix(schema, LogicIntSerName),
@@ -64,7 +65,7 @@ func InitLogicIntClient(schema, etcdaddr string) {
 		logger.Sugar.Error(err)
 		panic(err)
 	}
-
+*/
 	LogicIntClient = pb.NewLogicIntClient(conn)
 }
 

@@ -3,10 +3,8 @@ package etcdv3
 import (
 	"context"
 	"fmt"
-
-	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
-
+        "go.etcd.io/etcd/mvcc/mvccpb"
 	//"google.golang.org/genproto/googleapis/ads/googleads/v1/services"
 	"strings"
 	"sync"
@@ -78,6 +76,7 @@ func NewResolverV2(schema, etcdAddr, serviceName string) (*Resolver, error) {
 }
 
 func (r1 *Resolver) ResolveNow(rn resolver.ResolveNowOptions) {
+    fmt.Println(rn)
 }
 
 func (r1 *Resolver) Close() {

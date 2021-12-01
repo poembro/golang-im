@@ -2,6 +2,8 @@ syntax = "proto3";
 import "push.ext.proto"; 
 package pb;
 
+option go_package = "../pb";
+
 service LogicInt {
   // 登录
   rpc ConnSignIn (ConnSignInReq) returns (ConnSignInResp); 

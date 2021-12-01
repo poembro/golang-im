@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	"github.com/gogo/protobuf/proto"
+        "github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 
 	//"golang-im/pkg/grpclib"
