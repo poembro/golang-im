@@ -48,7 +48,7 @@ func (s *messageService) SendOne(ctx context.Context, msg *pb.PushMsgReq) error 
 		"token", "md5/jwt/xxx",
 		"request_id", strconv.FormatInt(requestId, 10)))
 
-	rpc.Client.ConnectInt(msg.Message.Server).DeliverMessage(toConnectCtx, msg)
+	rpc.ConnectInt(msg.Message.Server).DeliverMessage(toConnectCtx, msg)
 
 	return nil
 }

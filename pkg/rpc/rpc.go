@@ -5,18 +5,17 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
-
-	"google.golang.org/grpc/balancer/roundrobin"
-
+	"time"
+	
 	"golang-im/pkg/grpclib/etcdv3"
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
-	"time"
-
+	
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 
 	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/balancer/roundrobin"
 )
 
 const (
@@ -102,29 +101,9 @@ func newGrpc(addr string) (*grpc.ClientConn, error) {
 	return conn, err
 }
 
-type client struct {
-	ClientConn map[string]*grpc.ClientConn
-	Lock       sync.RWMutex
-	AllService map[string]string
-	schema     string
-	etcdAddr   string
-}
-
-func NewClient(schema, etcdAddr string) {
-	Client = &client{
-		ClientConn: make(map[string]*grpc.ClientConn),
-		AllService: make(map[string]string),
-		schema:     schema,
-		etcdAddr:   etcdAddr,
-	}
-
-	// 去etcd 检查某服务所有在线节点  更多节点TODO  注意自定义grpc路由不用检查
-	Client.checkNode(schema, etcdAddr, ConnectIntSerName)
-}
-
 // ConnectInt grpc server 服务需要知道是哪个节点
-func (c *client) ConnectInt(addr string) pb.ConnectIntClient {
-	conn := c.getConn(c.schema, c.etcdAddr, addr)
+func ConnectInt(addr string) pb.ConnectIntClient {
+	conn := Client.GetConn(Client.Schema, Client.EtcdAddr, addr)
 	if conn == nil {
 		fmt.Errorf("grpc client failed")
 		return nil
@@ -133,8 +112,8 @@ func (c *client) ConnectInt(addr string) pb.ConnectIntClient {
 }
 
 // LogicInt grpc server 服务不用知道哪个节点
-func (c *client) LogicInt() pb.LogicIntClient {
-	conn := c.getConn(c.schema, c.etcdAddr, LogicIntSerName)
+func LogicInt() pb.LogicIntClient {
+	conn := Client.GetConn(Client.Schema, Client.EtcdAddr, LogicIntSerName)
 	if conn == nil {
 		fmt.Errorf("grpc client failed")
 		return nil
@@ -142,7 +121,28 @@ func (c *client) LogicInt() pb.LogicIntClient {
 	return pb.NewLogicIntClient(conn)
 }
 
-func (c *client) getConn(schema, etcdAddr, servicename string) *grpc.ClientConn {
+
+type client struct {
+	ClientConn map[string]*grpc.ClientConn
+	Lock       sync.RWMutex
+	AllService map[string]string
+	Schema     string
+	EtcdAddr   string
+}
+
+func NewClient(schema, etcdAddr string) {
+	Client = &client{
+		ClientConn: make(map[string]*grpc.ClientConn),
+		AllService: make(map[string]string),
+		Schema:     schema,
+		EtcdAddr:   etcdAddr,
+	}
+
+	// 去etcd 检查某服务所有在线节点  更多节点TODO  注意自定义grpc路由不用检查
+	Client.checkNode(schema, etcdAddr, ConnectIntSerName)
+}
+
+func (c *client) GetConn(schema, etcdAddr, servicename string) *grpc.ClientConn {
 	var (
 		r   *grpc.ClientConn
 		err error

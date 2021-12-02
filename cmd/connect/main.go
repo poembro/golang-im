@@ -60,7 +60,7 @@ func main() {
 		signal.Notify(c, syscall.SIGTERM)
 		s := <-c
 		logger.Logger.Info("server stop start", zap.Any("signal", s))
-		_, err := rpc.Client.LogicInt().ServerStop(context.TODO(), &pb.ServerStopReq{ConnAddr: config.Connect.LocalAddr})
+		_, err := rpc.LogicInt().ServerStop(context.TODO(), &pb.ServerStopReq{ConnAddr: config.Connect.LocalAddr})
 		if err != nil {
 			panic(err)
 		}

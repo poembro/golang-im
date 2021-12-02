@@ -69,7 +69,7 @@ func (c *Conn) Close() error {
 		DeleteConn(c.DeviceId)
 
 		// 通知Logic服务谁已经下线
-		_, _ = rpc.Client.LogicInt().Offline(context.TODO(), &pb.OfflineReq{
+		_, _ = rpc.LogicInt().Offline(context.TODO(), &pb.OfflineReq{
 			UserId:     c.UserId,
 			DeviceId:   c.DeviceId,
 			ClientAddr: c.GetAddr(),
@@ -152,7 +152,7 @@ func (c *Conn) Send(output *protocol.Proto) {
 func (c *Conn) MessageACK(p *protocol.Proto) {
 	tmp := string(p.Body)
 	index, _ := strconv.Atoi(tmp)
-	_, err := rpc.Client.LogicInt().MessageACK(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
+	_, err := rpc.LogicInt().MessageACK(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
 		&pb.MessageACKReq{
 			UserId:      c.UserId,
 			DeviceId:    c.DeviceId,
@@ -169,7 +169,7 @@ func (c *Conn) MessageACK(p *protocol.Proto) {
 
 // Sync 同步历史聊天记录
 func (c *Conn) Sync(p *protocol.Proto) {
-	resp, err := rpc.Client.LogicInt().Sync(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), // 333 对应 time.Now().UnixNano()
+	resp, err := rpc.LogicInt().Sync(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), // 333 对应 time.Now().UnixNano()
 		&pb.SyncReq{
 			UserId:   c.UserId,
 			DeviceId: c.DeviceId,
@@ -185,7 +185,7 @@ func (c *Conn) Sync(p *protocol.Proto) {
 
 // SignIn 登录
 func (c *Conn) SignIn(p *protocol.Proto) {
-	resp, err := rpc.Client.LogicInt().ConnSignIn(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
+	resp, err := rpc.LogicInt().ConnSignIn(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
 		&pb.ConnSignInReq{
 			Body:       p.Body,
 			ConnAddr:   config.Connect.LocalAddr,
@@ -229,7 +229,7 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 		"token", "md5/jwt/xxx",
 		"request_id", strconv.Itoa(int(p.Seq))))
 
-	_, err := rpc.Client.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf,})
+	_, err := rpc.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf,})
 	if err != nil {
 		return
 	}
