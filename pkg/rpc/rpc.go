@@ -126,7 +126,7 @@ func NewClient(schema, etcdAddr string) {
 func (c *client) ConnectInt(addr string) pb.ConnectIntClient {
 	conn := c.getConn(c.schema, c.etcdAddr, addr)
 	if conn == nil {
-		fmt.Errorf("client failed")
+		fmt.Errorf("grpc client failed")
 		return nil
 	}
 	return pb.NewConnectIntClient(conn)
@@ -136,7 +136,7 @@ func (c *client) ConnectInt(addr string) pb.ConnectIntClient {
 func (c *client) LogicInt() pb.LogicIntClient {
 	conn := c.getConn(c.schema, c.etcdAddr, LogicIntSerName)
 	if conn == nil {
-		fmt.Errorf("client failed")
+		fmt.Errorf("grpc client failed")
 		return nil
 	}
 	return pb.NewLogicIntClient(conn)

@@ -73,7 +73,7 @@ func (r *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts r
 	for i := range resp.Kvs {
 		k := string(resp.Kvs[i].Key)
 		v := string(resp.Kvs[i].Value)
-		//fmt.Println("-k->" , k, " ---v->",v )
+		fmt.Println("etcd Build()---k->" , k, " ---v->",v )
 		r.Set(k, v)
 	}
 	r.cc.UpdateState(resolver.State{Addresses: r.Gets()})
@@ -103,7 +103,7 @@ func (r *Discovery) watch(prefix string) {
 
 // Set 设置服务地址
 func (r *Discovery) Set(key, val string) {
-	fmt.Println("etcd SrvList set addr : ", val)
+	fmt.Println("etcd Set() SrvList set addr : ", val)
 	r.SrvList.Store(key, val)
 }
 
@@ -119,7 +119,7 @@ func (r *Discovery) Gets() []resolver.Address {
 		addrs = append(addrs, resolver.Address{Addr: v.(string)})
 		return true
 	})
-	fmt.Printf("etcd ---> %+v \r\n", addrs)
+	fmt.Printf("etcd --Gets()--> %+v \r\n", addrs)
 	return addrs
 }
 
@@ -146,8 +146,10 @@ func GetAllService(schema, etcdaddr, servicename string) map[string]string {
 	}
 
 	for i := range resp.Kvs {
-		key := string(resp.Kvs[i].Value)
-		allService[key] = servicename
+		k := string(resp.Kvs[i].Key)
+		v := string(resp.Kvs[i].Value)
+		fmt.Println("etcd  GetAllService ---k->" , k, " ---v->",v )
+		allService[k] = servicename
 	}
 	cli.Close()
 	return allService

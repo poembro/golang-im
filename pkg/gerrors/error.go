@@ -51,7 +51,7 @@ func WrapRPCError(err error) error {
         Details: []*any.Any{
             {
                 TypeUrl: TypeUrlStack,
-                Value:   util.Str2bytes(GetErrorStack(e) + " --grpc-- \n" + stack()),
+                Value:   util.Str2bytes(GetErrorStack(e) + " --grpc调用栈-- \n" + stack()),
             },
         },
     }
