@@ -56,7 +56,6 @@ func PushRoom(roomId string, p *protocol.Proto) {
     if !ok {
         return
     }
-    logger.Logger.Debug("PushRoom", zap.Any("body", p))
     value.(*Room).Push(p)
 }
 
@@ -102,16 +101,13 @@ func (r *Room) Push(p *protocol.Proto) {
     element := r.Conns.Front()
     for {
         c := element.Value.(*Conn)
-       
+        
         if time.Now().Sub(c.LastHeartbeatTime) > timeout {
-            logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", c.DeviceId), zap.Any("msg", "timeout"))
             timeoutConns = append(timeoutConns, c) 
         } else {
             c.Send(p)
         }
         
-        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
-
         element = element.Next()
         if element == nil {
             break

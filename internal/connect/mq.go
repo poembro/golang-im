@@ -22,11 +22,11 @@ const (
 func StartSubscribe() {
     channel := db.RedisCli.Subscribe(PushRoomTopic, PushAllTopic).Channel()
     for i := 0; i < config.Connect.SubscribeNum; i++ {
-        go getRedisMsg(channel)
+        go handleRedisMsg(channel)
     }
 }
 
-func getRedisMsg(channel <-chan *redis.Message) {
+func handleRedisMsg(channel <-chan *redis.Message) {
     for msg := range channel {
         if msg.Channel == PushAllTopic {
             pushMsg := new(pb.PushMsg)
@@ -56,10 +56,10 @@ func Dispatch(m *pb.PushMsg) {
     }
 }
 
-func _pushKeys(Op int32, serverID string, subKeys []int64, body []byte) (err error) {
+func _pushKeys(op int32, serverID string, keys []int64, body []byte) (err error) {
     // TODO 如果当前节点 与 serverID 不相等直接return
 
-    for _, key := range subKeys {
+    for _, key := range keys {
         // 获取设备对应的TCP连接
         conn := GetConn(key)
         if conn == nil {
@@ -73,7 +73,7 @@ func _pushKeys(Op int32, serverID string, subKeys []int64, body []byte) (err err
         }
 
         p := new(protocol.Proto)
-        p.Op = Op
+        p.Op = op
         p.Body = body
         conn.Send(p)
     }
@@ -81,18 +81,17 @@ func _pushKeys(Op int32, serverID string, subKeys []int64, body []byte) (err err
     return
 }
 
-func _pushRoom(Op int32, roomId string, body []byte) {
-    logger.Logger.Debug("_pushRoom", zap.Any("body", string(body)))
-    PushRoom(roomId, &protocol.Proto{
-        Op:   Op,
+func _pushRoom(op int32, roomid string, body []byte) {
+    PushRoom(roomid, &protocol.Proto{
+        Op:   op,
         Body: body,
     })
 }
 
-func _pushAll(Op int32, body []byte, Speed int32) {
+func _pushAll(op int32, body []byte, speed int32) {
     //TODO 如果单个节点连接数太多 需要用time.Sleep(Speed/节点数)间隔一下
-    PushAll(Speed, &protocol.Proto{
-        Op:   Op,
+    PushAll(speed, &protocol.Proto{
+        Op:   op,
         Body: body,
     })
 }
