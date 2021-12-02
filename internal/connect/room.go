@@ -1,12 +1,10 @@
 package connect
 
 import (
-    "container/list"
-    "golang-im/pkg/logger"
-    "golang-im/pkg/protocol"
+    "container/list" 
     "sync"
     "time"
-    "go.uber.org/zap"
+    "golang-im/pkg/protocol"
 )
 
 var RoomsManager sync.Map
