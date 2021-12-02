@@ -1,9 +1,9 @@
 package main
 
 import (
-	"golang-im/pkg/gn"
+    "golang-im/pkg/gn"
 
-	"time"
+    "time"
 )
 
 var log = gn.GetLogger()
@@ -16,24 +16,24 @@ type Handler struct {
 }
 
 func (Handler) OnConnect(c *gn.Conn) {
-	log.Info("connect:", c.GetFd(), c.GetAddr())
+    log.Info("connect:", c.GetFd(), c.GetAddr())
 }
 func (Handler) OnMessage(c *gn.Conn, bytes []byte) {
-	encoder.EncodeToFD(c.GetFd(), bytes)
-	log.Info("read:", string(bytes))
+    encoder.EncodeToFD(c.GetFd(), bytes)
+    log.Info("read:", string(bytes))
 }
 func (Handler) OnClose(c *gn.Conn, err error) {
-	log.Info("close:", c.GetFd(), err)
+    log.Info("close:", c.GetFd(), err)
 }
 
 func main() {
-	var err error
-	server, err = gn.NewServer(":8080", &Handler{}, gn.NewHeaderLenDecoder(2),
-		gn.WithTimeout(1*time.Second, 5*time.Second), gn.WithReadBufferLen(10))
-	if err != nil {
-		log.Info("err")
-		return
-	}
+    var err error
+    server, err = gn.NewServer(":8080", &Handler{}, gn.NewHeaderLenDecoder(2),
+        gn.WithTimeout(1*time.Second, 5*time.Second), gn.WithReadBufferLen(10))
+    if err != nil {
+        log.Info("err")
+        return
+    }
 
-	server.Run()
+    server.Run()
 }

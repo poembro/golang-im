@@ -1,25 +1,25 @@
 package util
 
 import (
-	"database/sql"
-	"golang-im/pkg/logger"
-	"golang-im/pkg/util/uid"
+    "database/sql"
+    "golang-im/pkg/logger"
+    "golang-im/pkg/util/uid"
 )
 
 var (
-	MessageBodyIdUid *uid.Uid
-	DeviceIdUid      *uid.Uid
+    MessageBodyIdUid *uid.Uid
+    DeviceIdUid      *uid.Uid
 )
 
 const (
-	DeviceIdBusinessId = "device_id" // 设备id
+    DeviceIdBusinessId = "device_id" // 设备id
 )
 
 func InitUID(db *sql.DB) {
-	var err error
-	DeviceIdUid, err = uid.NewUid(db, DeviceIdBusinessId, 5)
-	if err != nil {
-		logger.Sugar.Error(err)
-		panic(err)
-	}
+    var err error
+    DeviceIdUid, err = uid.NewUid(db, DeviceIdBusinessId, 5)
+    if err != nil {
+        logger.Sugar.Error(err)
+        panic(err)
+    }
 }

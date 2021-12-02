@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"golang-im/pkg/db"
-	"golang-im/pkg/gerrors"
+    "golang-im/pkg/db"
+    "golang-im/pkg/gerrors"
 )
 
 type queue struct{}
@@ -10,9 +10,9 @@ type queue struct{}
 var Queue = new(queue)
 
 func (queue) Publish(topic string, bytes []byte) error {
-	_, err := db.RedisCli.Publish(topic, bytes).Result()
-	if err != nil {
-		return gerrors.WrapError(err)
-	}
-	return nil
+    _, err := db.RedisCli.Publish(topic, bytes).Result()
+    if err != nil {
+        return gerrors.WrapError(err)
+    }
+    return nil
 }
