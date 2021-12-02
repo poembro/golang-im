@@ -34,6 +34,7 @@ type Conn struct {
 	DeviceId int64           // 设备ID
 	RoomId   string          // 订阅的房间ID
 	Element  *list.Element   // 链表节点
+	LastHeartbeatTime time.Time   // 最后一次读取数据的时间
 }
 
 // Write 写入数据
@@ -228,10 +229,7 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 		"token", "md5/jwt/xxx",
 		"request_id", strconv.Itoa(int(p.Seq))))
 
-	_, err := rpc.Client.LogicInt().SendMessage(ctx,
-		&pb.PushMsgReq{
-			Message: buf,
-		})
+	_, err := rpc.Client.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf,})
 	if err != nil {
 		return
 	}
@@ -242,6 +240,8 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 
 // Heartbeat 心跳
 func (c *Conn) Heartbeat(p *protocol.Proto) {
+	c.LastHeartbeatTime = time.Now()
+
 	p.Op = protocol.OpHeartbeatReply
 	p.Body = nil
 	c.Send(p)

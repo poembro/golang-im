@@ -31,6 +31,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
     conn := &Conn{
         CoonType: ConnTypeWS,
         WS:       wsConn,
+        LastHeartbeatTime: time.Now(),
     }
     DoConn(conn)
 }
@@ -40,7 +41,7 @@ func DoConn(conn *Conn) {
     defer util.RecoverPanic()
 
     for {
-        err := conn.WS.SetReadDeadline(time.Now().Add(12 * time.Minute))
+        err := conn.WS.SetReadDeadline(time.Now().Add(2 * time.Minute))
         _, data, err := conn.WS.ReadMessage()
         if err != nil {
             HandleReadErr(conn, err)

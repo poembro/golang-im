@@ -44,6 +44,7 @@ func (*handler) OnConnect(c *gn.Conn) {
     conn := &Conn{
         CoonType: CoonTypeTCP,
         TCP:      c,
+        LastHeartbeatTime: time.Now(),
     }
     c.SetData(conn)
     logger.Logger.Debug("connect:", zap.Int32("fd", c.GetFd()), zap.String("addr", c.GetAddr()))

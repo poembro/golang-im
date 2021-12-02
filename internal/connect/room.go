@@ -97,14 +97,22 @@ func (r *Room) Push(p *protocol.Proto) {
     r.lock.RLock()
     defer r.lock.RUnlock()
 
+    timeout := 1 * time.Minute // 1 分钟
     element := r.Conns.Front()
     for {
-        element.Value.(*Conn).Send(p)
-        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
-
+        c := element.Value.(*Conn)
         element = element.Next()
         if element == nil {
             break
         }
+
+        if time.Now().Sub(c.LastHeartbeatTime) > timeout {
+            logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", c.DeviceId), zap.Any("msg", "timeout"))
+            c.Close()  // 超时情况下，这里要从链表中删除当前元素， 由Close 方法中另起一个groutine去做
+            continue
+        }
+
+        c.Send(p)
+        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
     }
 }
