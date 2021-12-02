@@ -35,6 +35,7 @@ func getRedisMsg(channel <-chan *redis.Message) {
                 logger.Logger.Debug("StartSubscribe", zap.Error(err))
                 continue
             }
+            logger.Logger.Debug("RedisCli_Subscribe_msg", zap.Any("body", pushMsg))
             Dispatch(pushMsg)
         }
     }
