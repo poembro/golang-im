@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	
+	"go.uber.org/zap"
 	"golang-im/pkg/grpclib/etcdv3"
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
@@ -105,7 +106,8 @@ func newGrpc(addr string) (*grpc.ClientConn, error) {
 func ConnectInt(addr string) pb.ConnectIntClient {
 	conn := Client.GetConn(Client.Schema, Client.EtcdAddr, addr)
 	if conn == nil {
-		fmt.Errorf("grpc client failed")
+		err := fmt.Errorf("grpc client failed %s 不在线", addr)
+		logger.Logger.Error("LogicInt", zap.Any("conn", err))
 		return nil
 	}
 	return pb.NewConnectIntClient(conn)
@@ -115,7 +117,8 @@ func ConnectInt(addr string) pb.ConnectIntClient {
 func LogicInt() pb.LogicIntClient {
 	conn := Client.GetConn(Client.Schema, Client.EtcdAddr, LogicIntSerName)
 	if conn == nil {
-		fmt.Errorf("grpc client failed")
+		err := fmt.Errorf("grpc client failed %s 不在线", LogicIntSerName)
+		logger.Logger.Error("LogicInt", zap.Any("conn", err))
 		return nil
 	}
 	return pb.NewLogicIntClient(conn)
@@ -138,7 +141,7 @@ func NewClient(schema, etcdAddr string) {
 		EtcdAddr:   etcdAddr,
 	}
 
-	// 去etcd 检查某服务所有在线节点  更多节点TODO  注意自定义grpc路由不用检查
+	// 去etcd 检查某服务所有在线节点.  注意:只针对非grpc服务发现的
 	Client.checkNode(schema, etcdAddr, ConnectIntSerName)
 }
 
@@ -164,7 +167,8 @@ func (c *client) GetConn(schema, etcdAddr, servicename string) *grpc.ClientConn 
 	if u.Port() != "" {
 		// 判断节点是否在线 TODO
 		if _, ok := c.AllService[servicename]; !ok {
-			fmt.Errorf("将要访问的节点  %s 不在线", servicename)
+			err = fmt.Errorf("将要访问的节点 %s 不在线", servicename)
+			logger.Logger.Error("GetConn", zap.Any("conn", err))
 			return nil
 		}
 		r, err = newGrpc(servicename)
