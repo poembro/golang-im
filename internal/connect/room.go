@@ -100,7 +100,7 @@ func (r *Room) Push(p *protocol.Proto) {
     element := r.Conns.Front()
     for {
         element.Value.(*Conn).Send(p)
-        logger.Logger.Debug("Push", zap.Any("msg", p))
+        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
 
         element = element.Next()
         if element == nil {
