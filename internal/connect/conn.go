@@ -59,6 +59,7 @@ func (c *Conn) Write(bytes []byte) error {
 func (c *Conn) Close() error {
 	// 取消订阅，需要异步出去，防止重复加锁造成死锁
 	go func() {
+		logger.Logger.Debug("Close", zap.Any("DeviceId", c.DeviceId))
 		SubscribedRoom(c, "")
 	}()
 

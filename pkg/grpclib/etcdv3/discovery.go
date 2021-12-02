@@ -47,7 +47,7 @@ func (r *Discovery) Scheme() string {
 }
 
 func (r *Discovery) ResolveNow(rn resolver.ResolveNowOptions) {
-	fmt.Println(rn)
+	//fmt.Println(rn)
 }
 
 func (r *Discovery) Close() {
