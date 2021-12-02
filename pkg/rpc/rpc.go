@@ -40,7 +40,6 @@ var (
 	Client *client
 )
 
-// 不需要知道具体访问哪个节点
 func newServicenameGrpc(schema, etcdAddr, servicename string) (*grpc.ClientConn, error) {
 	rr := etcdv3.NewDiscovery(schema, etcdAddr, servicename)
 	resolver.Register(rr) //向resolver/resolver.go 中m变量追加参数和值 m[b.Scheme()] = b
