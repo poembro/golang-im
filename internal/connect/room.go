@@ -96,23 +96,29 @@ func (r *Room) Unsubscribe(conn *Conn) {
 func (r *Room) Push(p *protocol.Proto) {
     r.lock.RLock()
     defer r.lock.RUnlock()
-
+ 
     timeout := 1 * time.Minute // 1 分钟
+    timeoutConns := make([]*Conn, 0) // 超时的连接 
     element := r.Conns.Front()
     for {
         c := element.Value.(*Conn)
+       
+        if time.Now().Sub(c.LastHeartbeatTime) > timeout {
+            logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", c.DeviceId), zap.Any("msg", "timeout"))
+            timeoutConns = append(timeoutConns, c) 
+        } else {
+            c.Send(p)
+        }
+        
+        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
+
         element = element.Next()
         if element == nil {
             break
         }
-
-        if time.Now().Sub(c.LastHeartbeatTime) > timeout {
-            logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", c.DeviceId), zap.Any("msg", "timeout"))
-            c.Close()  // 超时情况下，这里要从链表中删除当前元素， 由Close 方法中另起一个groutine去做
-            continue
-        }
-
-        c.Send(p)
-        logger.Logger.Debug("Push", zap.Any("server_to_client_device_id", element.Value.(*Conn).DeviceId), zap.Any("msg", p))
+    }
+ 
+    for i := range timeoutConns {
+        timeoutConns[i].Close()  // 超时情况下，这里要从链表中删除， 由Close 方法中另起一个groutine去做
     }
 }
