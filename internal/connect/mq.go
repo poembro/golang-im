@@ -82,6 +82,7 @@ func _pushKeys(Op int32, serverID string, subKeys []int64, body []byte) (err err
 }
 
 func _pushRoom(Op int32, roomId string, body []byte) {
+    logger.Logger.Debug("_pushRoom", zap.Any("body", string(body)))
     PushRoom(roomId, &protocol.Proto{
         Op:   Op,
         Body: body,

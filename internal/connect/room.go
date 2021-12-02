@@ -56,7 +56,7 @@ func PushRoom(roomId string, p *protocol.Proto) {
     if !ok {
         return
     }
-
+    logger.Logger.Debug("PushRoom", zap.Any("body", p))
     value.(*Room).Push(p)
 }
 
