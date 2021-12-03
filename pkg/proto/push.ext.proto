@@ -15,7 +15,7 @@ message PushMsg {
     int32 speed = 3; //广播的时候间隔时间 time.Sleep(time.Duration(取余speed))) * time.Second)
     string server = 4; //serverID comet服务 ip port
     string room_id = 5; //房间号 
-    repeated int64 keys = 6; //设备id
+    repeated string device_id = 6; //设备id
     bytes msg = 7;
 }
 
