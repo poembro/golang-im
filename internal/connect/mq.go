@@ -45,7 +45,7 @@ func handleRedisMsg(channel <-chan *redis.Message) {
 func Dispatch(m *pb.PushMsg) {
 	switch m.Type {
 	case pb.PushMsg_PUSH:
-		_pushKeys(m.Operation, m.Server, m.Keys, m.Msg)
+		_pushKeys(m.Operation, m.Server, m.DeviceId, m.Msg)
 	case pb.PushMsg_ROOM:
 		_pushRoom(m.Operation, m.RoomId, m.Msg)
 	case pb.PushMsg_BROADCAST:
@@ -56,10 +56,10 @@ func Dispatch(m *pb.PushMsg) {
 	}
 }
 
-func _pushKeys(op int32, serverID string, keys []string, body []byte) (err error) {
+func _pushKeys(op int32, serverID string, DeviceId []string, body []byte) (err error) {
 	// TODO 如果当前节点 与 serverID 不相等直接return
 
-	for _, key := range keys {
+	for _, key := range DeviceId {
 		// 获取设备对应的TCP连接
 		conn := GetConn(key)
 		if conn == nil {
