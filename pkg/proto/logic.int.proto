@@ -14,7 +14,7 @@ service LogicInt {
   // 同步历史聊天记录
   rpc Sync (SyncReq) returns (SyncResp);
   // 心跳包
-  rpc Heartbeat(HeartbeatReq) returns (HeartbeatReply);
+  rpc Heartbeat(HeartbeatReq) returns (HeartbeatResp);
 
   // 消息存储  TODO
   // 在线人数  TODO 
