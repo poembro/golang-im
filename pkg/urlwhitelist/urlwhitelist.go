@@ -7,6 +7,7 @@ var Connect = map[string]int{
 // 白名单方法,不需要鉴权的grpc方法写在这里
 var Logic = map[string]int{
     // "/pb.LogicInt/SendMessage": 1,
+    "/pb.LogicInt/Heartbeat": 1,
     "/pb.LogicInt/ConnSignIn": 1,
     "/pb.LogicInt/ServerStop": 1,
     "/pb.LogicInt/MessageACK": 1,

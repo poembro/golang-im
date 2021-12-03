@@ -49,6 +49,7 @@ message SyncReq {
   string device_id = 2; // 设备id
   int64 seq = 3; // 客户端已经同步的序列号
 }
+
 message SyncResp {
   bytes messages = 1; // 消息列表
   bool has_more = 2; // 是否有更多数据
