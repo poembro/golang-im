@@ -10,7 +10,7 @@
 - 使用 redis 发布订阅做推送
 - 采用 TLV 协议格式，保持与[goim](https://github.com/Terry-Mao/goim)一致
 - 采用框架结构分层设计参考[gim](https://github.com/alberliu/gim)
-- 采用 etcd 作为服务发现, 服务注册时以设置权重值,作为grpc客户端负载均衡条件 实现分布式高可用
+- 采用 etcd 作为服务发现,grpc客户端负载均衡 实现分布式高可用
 - c10K以内的并发连接完全够用
 
 
@@ -18,7 +18,7 @@
 
 ## 描述
 - 在学习goim 与 gim 等项目代码后，做的二者结合，用最精简的方式达到练手实践效果。 
- 
+
 
 
 ---
@@ -38,7 +38,12 @@
 ``` 
 1. 安装redis  省略
 2. 安装etcd 
-2.1 安装docker-compose 省略
+2.1 安装docker-compose 
+# yum -y install libcurl libcurl-devel
+# curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+# chmod +x /usr/local/bin/docker-compose
+# docker-compose --version
+
 2.2 [root@iZ~]#mkdir /data/web/etcd/ && cd /data/web/etcd
 2.3 [root@iZ~]#vi docker-compose.yml
 version: "3.5"
@@ -76,12 +81,12 @@ services:
 networks:
   etcdnet:
     name: etcdnet
-  
-  
-  
-  
+
+
+
+
 2.4 [root@iZ~]#docker-compose up -d 
-     
+
 3. 安装golang-im 服务
 [root@iZ~]#cd /data/web
 [root@iZ~]#git clone git@github.com:poembro/golang-im.git 
@@ -93,40 +98,11 @@ networks:
 [root@iZ~]# go run main.go
 http://localhost:1999/
 
- 
+
+``` 
 
 
 
-
-5.可能遇到问题 
-[root@192 discovery]# go run main.go 
-go: finding github.com/coreos/pkg latest
-go: finding github.com/coreos/go-systemd latest
-# github.com/coreos/etcd/clientv3/balancer/picker
-../../pkg/mod/github.com/coreos/etcd@v3.3.25+incompatible/clientv3/balancer/picker/err.go:37:44: undefined: balancer.PickOptions
-../../pkg/mod/github.com/coreos/etcd@v3.3.25+incompatible/clientv3/balancer/picker/roundrobin_balanced.go:55:54: undefined: balancer.PickOptions
-# github.com/coreos/etcd/clientv3/balancer/resolver/endpoint
-../../pkg/mod/github.com/coreos/etcd@v3.3.25+incompatible/clientv3/balancer/resolver/endpoint/endpoint.go:114:78: undefined: resolver.BuildOption
-../../pkg/mod/github.com/coreos/etcd@v3.3.25+incompatible/clientv3/balancer/resolver/endpoint/endpoint.go:182:31: undefined: resolver.ResolveNowOption
- 
-## 解决方法
-go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
-
-如果是grpc> = 1.27.0，那么只需在go.mod文件中更改grpc v1.26.0，如下：
-require (
-...
-google.golang.org/grpc v1.26.0
-)
-如果protoc版本太高，不兼容grpc v1.26.0，可以降级protoc。
-修复需要等待#11564。
-
-require (
-google.golang.org/grpc v1.26.0 // indirect
-github.com/gogo/protobuf v1.3.2 // indirect
-)
-
-
-```
 
 
 ## 协议格式  

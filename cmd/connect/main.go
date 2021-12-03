@@ -29,7 +29,7 @@ func main() {
 	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
 
 	// 初始化Rpc Client
-	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr)
+	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr, rpc.LogicIntSerName)
 
 	// 启动TCP长链接服务器
 	go func() {

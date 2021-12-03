@@ -13,7 +13,9 @@ service LogicInt {
   rpc MessageACK (MessageACKReq) returns (MessageACKResp);
   // 同步历史聊天记录
   rpc Sync (SyncReq) returns (SyncResp);
-  
+  // 心跳包
+  rpc Heartbeat(HeartbeatReq) returns (HeartbeatReply);
+
   // 消息存储  TODO
   // 在线人数  TODO 
   
@@ -29,13 +31,13 @@ message ConnSignInReq {
   string client_addr = 3; // 客户端地址
 }
 message ConnSignInResp {
-  int64 device_id = 1; // 设备id  用来区分一个用户多个设备 之间消息同步问题
+  string device_id = 1; // 设备id  用来区分一个用户多个设备 之间消息同步问题
   int64 user_id = 2; // 用户id
 }
 
 message MessageACKReq {
   int64 user_id = 1; // 用户id
-  int64 device_id = 2; // 设备id
+  string device_id = 2; // 设备id
   int64 device_ack = 3; // 设备收到消息的确认号
   int64 receive_time = 4; // 消息接收时间戳，精确到毫秒
 }
@@ -44,7 +46,7 @@ message MessageACKResp {
 
 message SyncReq {
   int64 user_id = 1; // 用户id
-  int64 device_id = 2; // 设备id
+  string device_id = 2; // 设备id
   int64 seq = 3; // 客户端已经同步的序列号
 }
 message SyncResp {
@@ -52,9 +54,18 @@ message SyncResp {
   bool has_more = 2; // 是否有更多数据
 }
 
+message HeartbeatReq {
+    int64 mid = 1;
+    string device_id = 2;
+    string conn_addr = 3;
+}
+
+message HeartbeatResp {
+}
+
 message OfflineReq {
   int64 user_id = 1; // 用户id
-  int64 device_id = 2; // 设备id
+  string device_id = 2; // 设备id
   string client_addr = 3; // 客户端地址
 }
 message OfflineResp {

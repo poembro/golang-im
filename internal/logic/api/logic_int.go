@@ -67,7 +67,8 @@ func (*LogicIntServer) Sync(ctx context.Context, req *pb.SyncReq) (*pb.SyncResp,
 // Offline 设备离线
 func (s *LogicIntServer) Offline(ctx context.Context, req *pb.OfflineReq) (*pb.OfflineResp, error) {
     logger.Sugar.Infow("Offline", "Offline", "设备离线", "desc_requeset_id", grpclib.GetCtxRequestId(ctx))
-    logger.Logger.Debug("Offline", zap.Any("req", req))
+
+    service.AuthService.Offline(ctx, req.UserId, req.DeviceId, req.ClientAddr)
     return &pb.OfflineResp{}, nil
 }
 

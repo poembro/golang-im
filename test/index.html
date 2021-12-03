@@ -56,6 +56,14 @@
         }
         obj.sendMsg(msg)
       }
+
+      var onStop = function(){
+        var obj = window.Mywebsoket
+        if (!obj) {
+            return console.log("先启动 建立连接");
+        }
+        obj.onStop(msg)
+      }
     </script>
     <style type="text/css">
         span{ display:block;}
@@ -72,7 +80,7 @@
       <div> 
         <ul>
           <li> 
-              url: <input id="url" type="text" value="ws://localhost:8081/ws"/><br />  
+              url: <input id="url" type="text" value="ws://47.111.69.116:7923/ws"/><br />  
           </li>
           
           <li> 
@@ -95,6 +103,7 @@
     
       <h2>
         <button onclick="onStart();">启动</button><br/>
+        <button onclick="onStop();">关闭</button><br/>
         输入消息: <input id="msg" type="text" value=""/>    <button onclick="onSendMsg();">发送</button><br/>
       </h2>
 

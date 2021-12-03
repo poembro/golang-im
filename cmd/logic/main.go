@@ -31,7 +31,7 @@ func main() {
     db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
 
     // 初始化RpcClient
-	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr)
+	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr, rpc.ConnectIntSerName)
 
     keepParams := grpc.KeepaliveParams(keepalive.ServerParameters{
         MaxConnectionIdle:     time.Duration(time.Second * 60), //60s 连接最大闲置时间

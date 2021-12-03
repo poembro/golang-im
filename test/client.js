@@ -44,8 +44,8 @@
         var heartbeatInterval;
 
         function connect() {
-            var ws = new WebSocket('ws://47.111.69.116:7923/ws');
-            //var ws = new WebSocket(self.options.url); 
+            //var ws = new WebSocket('ws://47.111.69.116:7923/ws');
+            var ws = new WebSocket(self.options.url); 
             ws.binaryType = 'arraybuffer';
             ws.onopen = function() {
                 auth(); 
@@ -178,6 +178,11 @@
         function reConnect() {
             self.createConnect(--max, delay * 2);
         }
+    }
+
+    Client.prototype.onStop = function() {
+        var self = this;  
+        self.ws.onclose()
     }
 
     Client.prototype.sendMsg = function(msg) {
