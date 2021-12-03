@@ -55,7 +55,7 @@ message SyncResp {
 }
 
 message HeartbeatReq {
-    int64 mid = 1;
+    int64 user_id = 1;
     string device_id = 2;
     string conn_addr = 3;
 }

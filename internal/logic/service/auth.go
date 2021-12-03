@@ -49,7 +49,12 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
 	return deviceId, userId, err
 }
 
-func (s *authService) Offline(ctx context.Context, userId int64, deviceId string, clientAddr string) error {
+func (s *authService) Heartbeat(ctx context.Context, userId int64, deviceId, connAddr string) error {
+	cache.Online.ExpireMapping(userId, deviceId)
+	return nil
+}
+
+func (s *authService) Offline(ctx context.Context, userId int64, deviceId, connAddr string) error {
 	cache.Online.DelMapping(userId, deviceId)
 	return nil
 }

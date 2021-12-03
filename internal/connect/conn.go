@@ -26,15 +26,15 @@ const (
 )
 
 type Conn struct {
-	CoonType int8            // 连接类型
-	TCP      *gn.Conn        // tcp连接
-	WSMutex  sync.Mutex      // WS写锁
-	WS       *websocket.Conn // websocket连接
-	UserId   int64           // 用户ID
-	DeviceId int64           // 设备ID
-	RoomId   string          // 订阅的房间ID
-	Element  *list.Element   // 链表节点
-	LastHeartbeatTime time.Time   // 最后一次读取数据的时间
+	CoonType          int8            // 连接类型
+	TCP               *gn.Conn        // tcp连接
+	WSMutex           sync.Mutex      // WS写锁
+	WS                *websocket.Conn // websocket连接
+	UserId            int64           // 用户ID
+	DeviceId          string          // 设备ID
+	RoomId            string          // 订阅的房间ID
+	Element           *list.Element   // 链表节点
+	LastHeartbeatTime time.Time       // 最后一次读取数据的时间
 }
 
 // Write 写入数据
@@ -64,7 +64,7 @@ func (c *Conn) Close() error {
 		SubscribedRoom(c, "")
 	}()
 
-	if c.DeviceId != 0 {
+	if c.DeviceId != "" {
 		// 取消设备和连接的对应关系
 		DeleteConn(c.DeviceId)
 
@@ -225,11 +225,11 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 	// 加上grpc头防止api授权拦截
 	ctx := metadata.NewOutgoingContext(context.TODO(), metadata.Pairs(
 		"user_id", strconv.FormatInt(c.UserId, 10),
-		"device_id", strconv.FormatInt(c.DeviceId, 10),
+		"device_id", c.DeviceId,
 		"token", "md5/jwt/xxx",
 		"request_id", strconv.Itoa(int(p.Seq))))
 
-	_, err := rpc.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf,})
+	_, err := rpc.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf})
 	if err != nil {
 		return
 	}
