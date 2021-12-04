@@ -4,6 +4,8 @@ import (
     "context"
     "golang-im/internal/logic/cache"
     "golang-im/pkg/logger"
+    
+	"github.com/tidwall/gjson"
 )
 
 type authService struct{}
@@ -17,7 +19,9 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
     var (
         deviceId = "11011"
         userId   = int64(7)
+        err error
     )
+    //解析body  得到 deviceId, userId
     /*
        p.Body = {
            room_id:'live://1000', //将消息发送到指定房间
@@ -38,10 +42,19 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
            pushurl:"http://192.168.3.222:9999/open/push",
        }
     */
-    //解析body  得到 deviceId, userId
+    jsonStr := string(body)
+
+    userId = gjson.Get(jsonStr, "user_id").int64()
+    if userId <= 0 {
+        err = fmt.Errorf("user_id error %d ", userId)
+        return deviceId, userId, gerrors.WrapError(err)
+    }
+    deviceId = gjson.Get(jsonStr, "key").String()
+
+    // 校验 TODO
 
     // 标记用户在设备上登录
-    err := cache.Online.AddMapping(userId, "md5", connAddr, string(body))
+    err = cache.Online.AddMapping(userId, deviceId, connAddr, body)
     logger.Sugar.Infow("---->", "SignIn", 2, "desc", "标记用户在设备上登录")
 
     return deviceId, userId, err

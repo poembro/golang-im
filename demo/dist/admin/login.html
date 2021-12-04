@@ -18,8 +18,8 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<meta name="format-detection" content="telephone=no">
 	<title>登录</title>
-	<link rel="stylesheet" type="text/css" href="css/mui.min.css"/>
-	<link rel="stylesheet" type="text/css" href="css/css.css"/>  
+	<link rel="stylesheet" type="text/css" href="../css/mui.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/css.css"/>  
 </head> 
 <body class="bg-fff">
 	<header class="mui-bar mui-bar-nav">
@@ -69,7 +69,7 @@ var User = {
 		if ( password.length < 6)
 		{
 			self.alert('请输入大于6位的密码');
-				return;
+			return;
 		}
 			
 		if (!self.flag)
@@ -84,6 +84,7 @@ var User = {
 			self.flag = true;
 			if (data.success)
 			{ 
+				window.localStorage.setItem("mobile", mobile);
 				location.href = "/find.html";
 				return false;
 			}

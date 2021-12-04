@@ -1,5 +1,15 @@
 (function(win){
-
+            
+    var randomNum = function (minNum,maxNum){ 
+        switch(arguments.length){ 
+            case 1: 
+                return parseInt(Math.random()*minNum+1,10);  
+            case 2: 
+                return parseInt(Math.random()*(maxNum-minNum+1)+minNum,10);  
+            default: 
+                return 0;  
+        }
+    };
 
     var _ = {} 
     _.init = function() { 
@@ -12,18 +22,6 @@
         },
         init:function (){
             var self = this
-                 
-            var randomNum = function (minNum,maxNum){ 
-                switch(arguments.length){ 
-                    case 1: 
-                        return parseInt(Math.random()*minNum+1,10);  
-                    case 2: 
-                        return parseInt(Math.random()*(maxNum-minNum+1)+minNum,10);  
-                    default: 
-                        return 0;  
-                }
-            };
-
             self.send(self.opt.shop_id, 0)
             setInterval(function() {
                 var num = randomNum(1, 10)
