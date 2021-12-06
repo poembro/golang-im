@@ -3,8 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"golang-im/internal/logic/cache"
+	"golang-im/pkg/pb"
+	"golang-im/pkg/protocol"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"golang-im/config"
@@ -13,6 +19,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/golang/protobuf/proto"
 )
 
 type router struct {
@@ -89,8 +96,8 @@ func StaticServer(w http.ResponseWriter, req *http.Request) {
 }
 
 func apiUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		return 
+	if r.Method != "POST" {
+		return
 	}
     reader, err := r.MultipartReader()
     if err != nil {
@@ -109,7 +116,8 @@ func apiUpload(w http.ResponseWriter, r *http.Request) {
             data, _ := ioutil.ReadAll(part)
             fmt.Printf("FormData=[%s]\n", string(data))
         } else {    // This is FileData
-            dst, _ := os.Create("./" + part.FileName() + ".upload")
+			newPath := fmt.Sprintf("./upload/%d.%s", time.Now().Unix(), part.FileName())
+            dst, _ := os.Create(newPath)
             defer dst.Close()
             io.Copy(dst, part)
         }
@@ -121,12 +129,14 @@ type resp struct {
 	Msg     string `json:"msg,omitempty"`
 	Success bool   `json:"success,omitempty"`
 
+	UserList []string `json:"user_list,omitempty"`
 	Mobile string `json:"mobile,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
 func apiRegister(w http.ResponseWriter, r *http.Request) {
 	var (
+
 		mobile string
 		password string
 	)
@@ -139,7 +149,7 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 	_, err := db.RedisCli.HSet("user_table", mobile, password).Result()
 
 	res := resp{
-		Code:    0,
+		Code: 0,
 		Success: false,
 		Msg: "",
 	}
@@ -181,29 +191,44 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	serveJSON(w, res)
 }
 
+// 查看所有与自己聊天的用户
 func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	var (
-		roomId string
+		shopId string
 	)
 
 	if r.Method == "POST" {
-		mobile = r.FormValue("mobile")
-		password = r.FormValue("password")
+		shopId = r.FormValue("shop_id")
 	}
 
-	oldPwd, err := db.RedisCli.HGet("user_table", mobile).Result()
+	ids := make([]int64, 0)
+	idsTmp, err := db.RedisCli.ZRevRange("userList:" + shopId, 0, 50).Result()
+	for _, v := range idsTmp {
+		id, _ := strconv.ParseInt(v, 10, 64)
+		ids = append(ids, id)
+	}
+	dst, err := cache.Online.KeysByUserIds(ids)
+    fmt.Printf("%+v \r\n", dst)
+
+	//lastMessage := make(map[string]string,0)
+	//for _, v := range dst {
+		// 1.拿到每个用户的 偏移  hget user_id room_id
+		// 2.zrevrange("msglist:" .. room_id, min, max)
+
+	//}
 
 	res := resp{
 		Code:    0,
 		Success: false,
 		Msg: "",
 	}
-	if oldPwd == password {
+	if err == nil {
 		res.Code = 1
 		res.Success = true
+		res.UserList = dst
 	} else {
 		res.Code = 0
-		res.Msg = "参数" + mobile + "不能为空" + err.Error()
+		res.Msg = "参数" + shopId + "不能为空" + err.Error()
 	}
 	serveJSON(w, res)
 }
@@ -212,37 +237,26 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 	var ( 
 		userId string
 		roomId string
-		face string
-		nickname string 
+		shopId string
 		typ string
 		msg string
-		mobile string
 
-		userIdInt64 int64
+		msgId int64
 		PushAllTopic  = "push_all_topic"  // 全服消息队列
 	)
 
 	if r.Method == "POST" {
 		roomId = r.FormValue("room_id")
 		typ = r.FormValue("type")
-		mobile = r.FormValue("mobile") 
-		msg = r.FormValue("msg") 
-	} else {
-		userId = r.Form["mid"][0]
-		userIdInt64, _ := strconv.ParseInt(userId, 10, 64)
-
-		face := r.Form["face"][0]
-		nickname := r.Form["nickname"][0] 
+		msg = r.FormValue("msg")
+		userId = r.FormValue("user_id")
+		shopId = r.FormValue("shop_id")
 	}
 
-	body := fmt.Sprintf(`{
-        "me" : { "mid" : %d, "nickname" : "%s", "mobile" : "%s", "face" : "%s"}, --记录发送人
-        "type" : "%s",
-        "msg" : "%s",
-        "room_id" : "%s", 
-        "dateline" : %d,
-        "id" : "%s",
-    }`, userIdInt64, nickname, mobile, face, typ, msg, roomId, time.Now().Unix(), time.Now().UnixNano())
+	msgId = time.Now().UnixNano() // 消息唯一id 为了方便临时demo采用该方案， 后期线上可以用雪花算法
+
+	body := fmt.Sprintf(`{"user_id" : %s,"shop_id":%s,"type" : "%s","msg" : "%s","room_id" : "%s","dateline" : %d,"id" : "%d"}`,
+		userId, shopId, typ, msg, roomId, time.Now().Unix(), msgId)
 
 	buf := &pb.PushMsg{
         Type:      pb.PushMsg_ROOM,
@@ -250,11 +264,16 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
         Speed:     2,
         Server:    config.Connect.LocalAddr,
         RoomId:    roomId,
-        Msg:       body,
+        Msg:       []byte(body),
 	}
     bytes, err := proto.Marshal(buf)
     if err == nil {
+		// 推送 或者 写入kafka 队列等
 		err = cache.Queue.Publish(PushAllTopic, bytes)
+		if err == nil {
+			// 消息持久化
+			err = cache.Online.AddMessageList(roomId, msgId, body)
+		}
 	}
 
 	res := resp{

@@ -1,10 +1,10 @@
 package connect
 
 import (
-    "container/list" 
+    "container/list"
+    "golang-im/pkg/protocol"
     "sync"
     "time"
-    "golang-im/pkg/protocol"
 )
 
 var RoomsManager sync.Map
@@ -50,6 +50,11 @@ func SubscribedRoom(conn *Conn, roomId string) {
 
 // PushRoom 从全局Map中 找到对应roomid对应的Room结构体对象, 该对象下有 所有用户的连接句柄
 func PushRoom(roomId string, p *protocol.Proto) {
+    //RoomsManager.Range(func(key, value interface{}) bool {
+    //    fmt.Println("当前有房间 %+v ", value.(*Room))
+    //    return true
+    //})
+    //fmt.Println("推送到房间  1111   ", roomId)
     value, ok := RoomsManager.Load(roomId)
     if !ok {
         return
@@ -94,12 +99,12 @@ func (r *Room) Push(p *protocol.Proto) {
     r.lock.RLock()
     defer r.lock.RUnlock()
  
-    timeout := 1 * time.Minute // 1 分钟
+    timeout := 2 * time.Minute // 1 分钟
     timeoutConns := make([]*Conn, 0) // 超时的连接 
     element := r.Conns.Front()
     for {
         c := element.Value.(*Conn)
-        
+        //fmt.Printf("下发消息 %+v", c)
         if time.Now().Sub(c.LastHeartbeatTime) > timeout {
             timeoutConns = append(timeoutConns, c) 
         } else {
@@ -113,6 +118,7 @@ func (r *Room) Push(p *protocol.Proto) {
     }
  
     for i := range timeoutConns {
+        //fmt.Printf("关闭连接111 %+v", timeoutConns[i])
         timeoutConns[i].Close()  // 超时情况下，这里要从链表中删除， 由Close 方法中另起一个groutine去做
     }
 }

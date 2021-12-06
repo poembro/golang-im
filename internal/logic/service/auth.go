@@ -4,8 +4,8 @@ import (
     "context"
     "golang-im/internal/logic/cache"
     "golang-im/pkg/logger"
-    
-	"github.com/tidwall/gjson"
+
+    "github.com/tidwall/gjson"
 )
 
 type authService struct{}
@@ -26,7 +26,7 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
        p.Body = {
            room_id:'live://1000', //将消息发送到指定房间
            accepts:'[1000,1001,1002]',//接收系统全局房间的消息
-           key:'1xxxxxDeviceIdxxx假定为设备idxx',
+           device_id:'1xxxxxDeviceIdxxx假定为设备idxx',
 
            user_id: '663291537152950273',
            user_name:'随机用户001',
@@ -44,18 +44,16 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
     */
     jsonStr := string(body)
 
-    userId = gjson.Get(jsonStr, "user_id").int64()
-    if userId <= 0 {
-        err = fmt.Errorf("user_id error %d ", userId)
-        return deviceId, userId, gerrors.WrapError(err)
-    }
-    deviceId = gjson.Get(jsonStr, "key").String()
-
-    // 校验 TODO
+    userId = gjson.Get(jsonStr, "user_id").Int()
+    deviceId = gjson.Get(jsonStr, "device_id").String()
 
     // 标记用户在设备上登录
-    err = cache.Online.AddMapping(userId, deviceId, connAddr, body)
-    logger.Sugar.Infow("---->", "SignIn", 2, "desc", "标记用户在设备上登录")
+    err = cache.Online.AddMapping(userId, deviceId, connAddr, jsonStr)
+    logger.Sugar.Infow("--auth-->", "userId", userId, "deviceId", deviceId)
+
+    // 写入商户列表
+    shopId := gjson.Get(jsonStr, "shop_id").String()
+    err = cache.Online.AddShopList(shopId, gjson.Get(jsonStr, "user_id").String())
 
     return deviceId, userId, err
 }

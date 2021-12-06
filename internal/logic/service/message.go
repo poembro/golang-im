@@ -2,6 +2,7 @@ package service
 
 import (
     "context"
+    "github.com/tidwall/gjson"
     "golang-im/internal/logic/cache"
     "golang-im/pkg/grpclib"
     "golang-im/pkg/rpc"
@@ -73,4 +74,25 @@ func (*messageService) Sync(ctx context.Context, userId, seq int64) (*pb.SyncRes
     msg := []byte(`{"name":"zhangsan","sex":2}`)
     resp := &pb.SyncResp{Messages: msg, HasMore: false}
     return resp, nil
+}
+
+
+// MessageACK 消息确认机制
+func (s *messageService) MessageACK(ctx context.Context, deviceId string, userId, deviceAck, receiveTime int64 ) error {
+    userIds, err := cache.Online.KeysByUserIds([]int64{userId})
+    if err != nil {
+        return err
+    }
+
+    for _, v := range userIds {
+        logger.Logger.Debug("MessageACK", zap.Any("userJson", v))
+        tmp := gjson.Get(v, "device_id").String()
+        if tmp != deviceId {
+            continue
+        }
+        roomId := gjson.Get(v, "room_id").String()
+        cache.Online.AddMsgAckMapping(userId, roomId, deviceAck)
+    }
+
+    return nil
 }

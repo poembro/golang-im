@@ -54,9 +54,8 @@ func (*LogicIntServer) SendMessage(ctx context.Context, req *pb.PushMsgReq) (*pb
 
 // MessageACK 设备收到消息回执
 func (s *LogicIntServer) MessageACK(ctx context.Context, req *pb.MessageACKReq) (*pb.MessageACKResp, error) {
-    logger.Sugar.Infow("MessageACK", "MessageACK", "设备收到消息回执", "desc_requeset_id", grpclib.GetCtxRequestId(ctx))
-    logger.Logger.Debug("MessageACK", zap.Any("req", req))
-    return &pb.MessageACKResp{}, nil
+    err := service.MessageService.MessageACK(ctx, req.DeviceId, req.UserId, req.DeviceAck, req.ReceiveTime)
+    return &pb.MessageACKResp{}, err
 }
 
 // Sync 设备同步消息

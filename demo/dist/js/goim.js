@@ -33,9 +33,9 @@
         options : {
             room_id:'live://1000', //将消息发送到指定房间
             accepts:'[1000,1001,1002]',//接收指定房间的消息
-            key:'1xxxx', 
+            device_id:'1xxxx', 
 
-            mid: '663291537152950273',
+            user_id: '663291537152950273',
             nickname:'随机用户001',
             face:'/static/wap/img/portrait.jpg',
 
@@ -50,8 +50,8 @@
             var self = this  
             var room_id = _GET("room_id")
             var accepts = _GET("accepts")
-            var key = _GET("key")
-            var mid = _GET("mid")
+            var device_id = _GET("device_id")
+            var user_id = _GET("user_id")
             var nickname = _GET("nickname")
             var face = _GET("face")
             var suburl = _GET("suburl")
@@ -64,7 +64,7 @@
             self.options.shop_face = shop_face
             self.options.room_id = room_id
             self.options.accepts = accepts
-            self.options.key = key 
+            self.options.device_id = device_id
             self.options.nickname = decodeURI(nickname)
             self.options.face = face 
             self.options.suburl = suburl
@@ -73,12 +73,12 @@
             self.options.shop_name = decodeURI(shop_name)  //设置对方昵称 为房间名
             self.options.shop_id = shop_id
 
-            var tmp_mid = getCookie('mid')
-            if (tmp_mid && mid == tmp_mid) {
-                self.options.mid = tmp_mid
+            var tmp_mid = getCookie('user_id')
+            if (tmp_mid && user_id == tmp_mid) {
+                self.options.user_id = tmp_mid
             } else {
-                self.options.mid = mid
-                setCookie('mid', mid)
+                self.options.user_id = user_id
+                setCookie('user_id', user_id)
                 
                 //判断用户从哪过来
                 var referer = _GET("referer")
@@ -131,7 +131,12 @@
             var data = {
                 type : 'text',
                 msg : msg,
-                room_id : _.config.options.room_id
+                room_id : _.config.options.room_id,
+                user_id: _.config.options.user_id,
+                nickname: _.config.options.nickname,
+                face: _.config.options.face,
+                shop_id: _.config.options.shop_id,
+                shop_name: _.config.options.shop_name, 
             }
 
             if (msgtype && msgtype.length > 5) {
@@ -145,12 +150,12 @@
             }
 
             var room_id = _.config.options.room_id
-            var mid = _.config.options.mid 
+            var user_id = _.config.options.user_id 
             var nickname = _.config.options.nickname
             var face = _.config.options.face
             var shop_id = _.config.options.shop_id
             var shop_name = _.config.options.shop_name
-            var url = _.config.options.pushurl + "?room_id=" + room_id+ "&mid=" + mid + "&nickname="+nickname+"&face="+face+"&shop_id="+shop_id+"&shop_name="+shop_name
+            var url = _.config.options.pushurl + "?room_id=" + room_id+ "&user_id=" + user_id + "&nickname="+nickname+"&face="+face+"&shop_id="+shop_id+"&shop_name="+shop_name
             url = encodeURI(url)
 
             $.ajax({
@@ -237,27 +242,32 @@
                 var seq = dataView.getInt32(seqOffset) 
                 //console.log("receiveHeader: packetLen=" + packetLen, "headerLen=" + headerLen, "ver=" + ver, "op=" + op, "seq=" + seq)
                 switch(op) {
-                    case 8:
+                    case 8: // 认证成功的结果
+                        self.sub(ws, _.config.options.room_id)
                         // auth reply ok 
                         self.heartbeat(ws) 
                         self.heartbeatInterval = setInterval(function(){
                             self.heartbeat(ws)
                         }, 27 * 1000)
                         break
-                    case 3: 
+                    case 3: //心跳包成功的结果
                         //console.log("receive: heartbeat") 
                         break
-                    case 15:
+
+                    case 15: //订阅房间的结果
+                        //console.log("receive: sub") 
+                        break  
+                    case 17: // 取消订阅的结果 
+                        break
+                    case 19: //sync 同步历史消息
                         var msgBody = self.textDecoder.decode(data.slice(headerLen, packetLen))
                         //console.log("receive2: ver=" + ver + " op=" + op + " seq=" + seq + " message=" + msgBody)
                         self.syncMsgReceived(ws, msgBody)
                         break
-                    case 17:
-                        var msgBody = self.textDecoder.decode(data.slice(headerLen, packetLen))
-                        self.msgSeq = msgBody
-                        //console.log("receive2: ver=" + ver + " op=" + op + " seq=" + seq + " message=" + msgBody)
+                    case 21: //消息偏移上报的结果
+                        //console.log("receive: ack") 
                         break
-                    case 9:
+                    case 9: 
                         // batch message 原始消息 比如 TLV  中的 V (body体)又是一个 TLV 结构
                         var offset = rawHeaderLen 
                         for (; offset<data.byteLength; offset+=packetLen) {
@@ -273,11 +283,14 @@
                             self.messageReceived(ws, msgBody) 
                         }
                         break
-                    default:
+                    case 5:
                         var msgBody = self.textDecoder.decode(data.slice(headerLen, packetLen))
-                        //console.log("receive2: ver=" + ver + " op=" + op + " seq=" + seq + " message=" + msgBody)
+                        console.log("receive: ver=" + ver + " op=" + op + " seq=" + seq + " message=" + msgBody)
                         self.messageReceived(ws, msgBody)
                         break
+                    default:
+                        // TODO
+                        console.log("未知消息响应: packetLen=" + packetLen, "headerLen=" + headerLen, "ver=" + ver, "op=" + op, "seq=" + seq)
                 }
             }
 
@@ -290,7 +303,20 @@
                 self.createConnect(--max, delay * 2)
             } 
         }, 
-        seq : function (ws, seq) {
+        sub : function (ws, room_id) { //订阅房间
+            var self = this
+            var headerBuf = new ArrayBuffer(rawHeaderLen) //分配16个固定元素大小
+            var headerView = new DataView(headerBuf, 0) //读写时手动设定字节序的类型
+            var bodyBuf = self.textEncoder.encode(room_id)
+            headerView.setInt32(packetOffset, rawHeaderLen + bodyBuf.byteLength) //写入从内存的第0个字节序开始  值为16
+            headerView.setInt16(headerOffset, rawHeaderLen) //写入从内存的第4个字节序开始  值为16
+            headerView.setInt16(verOffset, 1)  //写入从内存的6第个字节序开始，值为1     省去的第三个参数: true为小端字节序，false为大端字节序 不填为大端字节序
+            headerView.setInt32(opOffset, 14)   //写入从内存的8第个字节序开始，值为2
+            headerView.setInt32(seqOffset, 1)  //写入从内存的12第个字节序开始，值为1 
+            var flag = ws.send(self.mergeArrayBuffer(headerBuf, bodyBuf))
+            return flag
+        },
+        messageAck : function (ws, seq) {
             var self = this
             var headerBuf = new ArrayBuffer(rawHeaderLen) //分配16个固定元素大小
             var headerView = new DataView(headerBuf, 0) //读写时手动设定字节序的类型
@@ -298,7 +324,7 @@
             headerView.setInt32(packetOffset, rawHeaderLen + bodyBuf.byteLength) //写入从内存的第0个字节序开始  值为16
             headerView.setInt16(headerOffset, rawHeaderLen) //写入从内存的第4个字节序开始  值为16
             headerView.setInt16(verOffset, 1)  //写入从内存的6第个字节序开始，值为1     省去的第三个参数: true为小端字节序，false为大端字节序 不填为大端字节序
-            headerView.setInt32(opOffset, 16)   //写入从内存的8第个字节序开始，值为2
+            headerView.setInt32(opOffset, 20)   //写入从内存的8第个字节序开始，值为2
             headerView.setInt32(seqOffset, 1)  //写入从内存的12第个字节序开始，值为1 
             var flag = ws.send(self.mergeArrayBuffer(headerBuf, bodyBuf))
             return flag
@@ -319,14 +345,15 @@
             headerView.setInt32(packetOffset, rawHeaderLen)  
             headerView.setInt16(headerOffset, rawHeaderLen)  
             headerView.setInt16(verOffset, 1)  
-            headerView.setInt32(opOffset, 14)
+            headerView.setInt32(opOffset, 18)
             headerView.setInt32(seqOffset, 1)  
             ws.send(headerBuf)
         },
+    
         auth: function (ws) {
             var self = this
             //协议格式对应 /api/comet/grpc/protocol
-            //var token = '{"mid":123, "room_id":"live://1000", "platform":"web", "accepts":[1000,1001,1002]}'
+            //var token = '{"user_id":123, "room_id":"live://1000", "platform":"web", "accepts":[1000,1001,1002]}'
             var token =  JSON.stringify(_.config.options)
             //console.log(token)
             //console.log(_.config.options)
@@ -353,7 +380,7 @@
             var show = JSON.parse(body)
             if (show) { 
                 //console.log( "--上报 消息偏移 --show.id-->" + show.id + " ---self.msgSeq-->" + self.msgSeq )  
-                self.seq(ws, show.id) //上报 消息偏移
+                self.messageAck(ws, show.id) //上报 消息偏移
                 _.render.show(show)
             }
         },
@@ -370,7 +397,7 @@
     _.render = {
         /**
         local data = {
-            mid = mid, 
+            user_id = user_id, 
             type = type,
             msg = msg,
             roomid = roomid, 
@@ -382,7 +409,7 @@
             var html = null  
             var msg = null
             var dateline = null
-            var mid = null
+            var user_id = null
             var msgtype = null
             var id = null
             if (!res.msg) {
@@ -391,8 +418,8 @@
             if (!res.dateline) {
                 return console.log("参数必须要有 dateline")
             }
-            if (!res.mid) {
-                return  console.log("参数必须要有 mid")
+            if (!res.user_id) {
+                return  console.log("参数必须要有 user_id")
             }
             if (!res.type) {
                 return console.log("参数必须要有 type")
@@ -402,13 +429,13 @@
             msg = res.msg
             dateline = res.dateline
             msgtype = res.type
-            mid = res.mid
+            user_id = res.user_id
             
             dateline = new Date(parseInt(dateline) * 1000).toLocaleString().replace(/年|月/g, "-").replace(/日/g, " ")  
             if (msg && msg.length > 3) {
                 msg = _.face.handleface( msg ) //表情过滤
             }
-            if (mid == _.config.options.mid) {
+            if (user_id == _.config.options.user_id) {
                 html = self.message_me(id, _.config.options.face , _.config.options.nickname,  dateline, msg, msgtype)
             } else {
                 html = self.message(id, _.config.options.shop_face, _.config.options.shop_name,  dateline, msg, msgtype)

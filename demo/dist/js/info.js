@@ -10,7 +10,11 @@
                 return 0;  
         }
     };
-
+    var _GET = function (name){
+        var reg = new RegExp("(^|&)"+ name +"=([^&]*)(&|$)");
+        var r = win.location.search.substr(1).match(reg);
+        if(r!=null)return  unescape(r[2]); return null;
+    }
     var _ = {} 
     _.init = function() { 
         _.userlist.init() 
@@ -22,6 +26,8 @@
         },
         init:function (){
             var self = this
+            var shop_id = _GET("shop_id") || 8000
+            self.opt.shop_id = shop_id
             self.send(self.opt.shop_id, 0)
             setInterval(function() {
                 var num = randomNum(1, 10)
@@ -56,11 +62,11 @@
 
                     if (data.success) {
                         self.opt.shop_id = shop_id 
-                        for (var i = 0; i < data.data.length; i++) { 
+                        for (var i = 0; i < data.user_list.length; i++) { 
                             //过滤掉自己
-                            self.show( data.data[i] ,flag) 
+                            self.show( data.user_list[i] ,flag)
                         }
-                    } else { 
+                    } else {
                          alert("改操作需要先登录  账号密码为 8000    111111")  
                          location.href = "/login.html";
                     }
