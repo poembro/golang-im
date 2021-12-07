@@ -2,10 +2,11 @@ package service
 
 import (
     "context"
+    "encoding/json"
+    "fmt"
     "golang-im/internal/logic/cache"
+    "golang-im/internal/logic/model"
     "golang-im/pkg/logger"
-
-    "github.com/tidwall/gjson"
 )
 
 type authService struct{}
@@ -17,6 +18,7 @@ var AuthService = new(authService)
 // 方案二: demo 中 body 是一个json 已经包含了头像昵称等信息
 func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, clientAddr string) (string, int64, error) {
     var (
+        user model.User
         deviceId = "11011"
         userId   = int64(7)
         err error
@@ -42,19 +44,17 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
            pushurl:"http://192.168.3.222:9999/open/push",
        }
     */
-    jsonStr := string(body)
-
-    userId = gjson.Get(jsonStr, "user_id").Int()
-    deviceId = gjson.Get(jsonStr, "device_id").String()
+    json.Unmarshal(body, &user)
 
     // 标记用户在设备上登录
-    err = cache.Online.AddMapping(userId, deviceId, connAddr, jsonStr)
-    logger.Sugar.Infow("--auth-->", "userId", userId, "deviceId", deviceId)
+    err = cache.Online.AddMapping(int64(user.UserId), user.DeviceId, connAddr, string(body))
+    logger.Sugar.Infow("SignIn", "user", user)
 
     // 写入商户列表
-    shopId := gjson.Get(jsonStr, "shop_id").String()
-    err = cache.Online.AddShopList(shopId, gjson.Get(jsonStr, "user_id").String())
+    err = cache.Online.AddShopList(user.ShopId, fmt.Sprintf("%d", user.UserId))
 
+    userId = int64(user.UserId)
+    deviceId = user.DeviceId
     return deviceId, userId, err
 }
 

@@ -63,10 +63,10 @@
 		<div class="mui-content">
 			<ul class="mui-table-view">
 				<li class="mui-table-view-cell mui-media">
-					<a href="/open/im?shop_id=8000" target="_blank">
-						<img class="mui-media-object mui-pull-left" src="../img/touxiang.png">
+					<a href="#" target="_blank">
+						<img class="mui-media-object mui-pull-left" src="https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg">
 						<div class="mui-media-body">
-							在您的web网站中,埋下跳转连接<xmp><a href="/open/im?shop_id=8000">咨询按钮</a></xmp>
+							在您的web网站中 埋下咨询连接
 							<span class="time">10:28</span>
 							<p class="mui-ellipsis">注意:本条消息模拟对接客服系统</p>
 						</div>
@@ -82,5 +82,188 @@
 			<li onclick="javascript:window.location.href='/admin/user.html'"><span><img src="../img/tabs/min.svg" ></span><span > 我的</span></li>
 		</footer>
 	</body>  
+
+<div id=ad1 style="Z-INDEX: 5"> 
+	<!--漂浮开始--> 
+	<a id="hrefValue" href="#"  target=_blank><img src=".../../../img/21.png"></a> 
+	<!--漂浮结束--> 
+</div> 
+
+<script src="../js/jquery.min.js"  type="text/javascript"></script>
+<script type="text/javascript">
+function addEvent(obj,evtType,func,cap){
+	cap=cap||false; 
+	if(obj.addEventListener){ 
+		obj.addEventListener(evtType,func,cap); 
+		return true; 
+	}else if(obj.attachEvent){ 
+		if(cap){ 
+			obj.setCapture(); 
+			return true; 
+		}else{ 
+			return obj.attachEvent("on" + evtType,func); 
+		} 
+	}else{ 
+	    return false; 
+	} 
+} 
+function getPageScroll(){
+	var xScroll,yScroll; 
+	if (self.pageXOffset) { 
+	    xScroll = self.pageXOffset; 
+	} else if (document.documentElement && document.documentElement.scrollLeft){ 
+	    xScroll = document.documentElement.scrollLeft; 
+	} else if (document.body) { 
+	    xScroll = document.body.scrollLeft; 
+	} 
+	if (self.pageYOffset) { 
+	    yScroll = self.pageYOffset; 
+	} else if (document.documentElement && document.documentElement.scrollTop){ 
+	    yScroll = document.documentElement.scrollTop; 
+	} else if (document.body) { 
+	    yScroll = document.body.scrollTop; 
+	} 
+	arrayPageScroll = new Array(xScroll,yScroll); 
+	return arrayPageScroll; 
+} 
+function GetPageSize(){
+	var xScroll, yScroll; 
+	if (window.innerHeight && window.scrollMaxY) { 
+		xScroll = document.body.scrollWidth; 
+		yScroll = window.innerHeight + window.scrollMaxY; 
+	} else if (document.body.scrollHeight > document.body.offsetHeight){ 
+		xScroll = document.body.scrollWidth; 
+		yScroll = document.body.scrollHeight; 
+	} else { 
+		xScroll = document.body.offsetWidth; 
+		yScroll = document.body.offsetHeight; 
+	} 
+	var windowWidth, windowHeight; 
+	if (self.innerHeight) { 
+		windowWidth = self.innerWidth; 
+		windowHeight = self.innerHeight; 
+	} else if (document.documentElement && document.documentElement.clientHeight) { 
+		windowWidth = document.documentElement.clientWidth; 
+		windowHeight = document.documentElement.clientHeight; 
+	} else if (document.body) { 
+		windowWidth = document.body.clientWidth; 
+		windowHeight = document.body.clientHeight; 
+	} 
+	if(yScroll < windowHeight){ 
+	    pageHeight = windowHeight; 
+	} else { 
+	    pageHeight = yScroll; 
+	} 
+	if(xScroll < windowWidth){ 
+	    pageWidth = windowWidth; 
+	} else { 
+	    pageWidth = xScroll; 
+	} 
+	arrayPageSize = new Array(pageWidth,pageHeight,windowWidth,windowHeight) 
+	return arrayPageSize; 
+} 
+		
+var AdMoveConfig=new Object(); 
+AdMoveConfig.IsInitialized=false; 
+AdMoveConfig.ScrollX=0; 
+AdMoveConfig.ScrollY=0; 
+AdMoveConfig.MoveWidth=0; 
+AdMoveConfig.MoveHeight=0; 
+AdMoveConfig.Resize=function(){ 
+	var winsize=GetPageSize(); 
+	AdMoveConfig.MoveWidth=winsize[2]; 
+	AdMoveConfig.MoveHeight=winsize[3]; 
+	AdMoveConfig.Scroll(); 
+} 
+AdMoveConfig.Scroll=function(){ 
+var winscroll=getPageScroll(); 
+AdMoveConfig.ScrollX=winscroll[0]; 
+AdMoveConfig.ScrollY=winscroll[1]; 
+} 
+addEvent(window,"resize",AdMoveConfig.Resize); 
+addEvent(window,"scroll",AdMoveConfig.Scroll);
+
+function AdMove(id){ 
+	if(!AdMoveConfig.IsInitialized){ 
+		AdMoveConfig.Resize(); 
+		AdMoveConfig.IsInitialized=true; 
+	} 
+
+	var obj=document.getElementById(id); 
+	obj.style.position="absolute"; 
+	var W=AdMoveConfig.MoveWidth-obj.offsetWidth; 
+	var H=AdMoveConfig.MoveHeight-obj.offsetHeight; 
+	var x = W*Math.random(),y = H*Math.random(); 
+	var rad=(Math.random()+1)*Math.PI/6; 
+	var kx=Math.sin(rad),ky=Math.cos(rad); 
+	var dirx = (Math.random()<0.5?1:-1), diry = (Math.random()<0.5?1:-1); 
+	var step = 1; 
+	var interval; 
+	this.SetLocation=function(vx,vy){x=vx;y=vy;} 
+	this.SetDirection=function(vx,vy){dirx=vx;diry=vy;} 
+	obj.CustomMethod=function(){ 
+		obj.style.left = (x + AdMoveConfig.ScrollX) + "px"; 
+		obj.style.top = (y + AdMoveConfig.ScrollY) + "px"; 
+		rad=(Math.random()+1)*Math.PI/6; 
+		W=AdMoveConfig.MoveWidth-obj.offsetWidth; 
+		H=AdMoveConfig.MoveHeight-obj.offsetHeight; 
+		x = x + step*kx*dirx; 
+		if (x < 0){dirx = 1;x = 0;kx=Math.sin(rad);ky=Math.cos(rad);} 
+		if (x > W){dirx = -1;x = W;kx=Math.sin(rad);ky=Math.cos(rad);} 
+		y = y + step*ky*diry; 
+		if (y < 0){diry = 1;y = 0;kx=Math.sin(rad);ky=Math.cos(rad);} 
+		if (y > H){diry = -1;y = H;kx=Math.sin(rad);ky=Math.cos(rad);} 
+	} 
+	this.Run=function(){ 
+		var delay = 10; 
+		interval=setInterval(obj.CustomMethod,delay); 
+		obj.onmouseover=function(){clearInterval(interval);} 
+		obj.onmouseout=function(){interval=setInterval(obj.CustomMethod, delay);} 
+	} 
+} 
+		
+$(document).ready(function(){
+	// 广告
+	new AdMove("ad1").Run(); 
+
+	var setCookie = function (name, value) {
+		var date = new Date(); //获取当前时间
+		var exp = 10; //expiresDays缩写exp(有效时间)
+		date.setTime(date.getTime() + exp * 24 * 3600 * 1000); //格式化为cookie识别的时间
+		document.cookie=escape(name) + "=" + escape(value) + ";expires="+date.toGMTString(); //将name设置为10天后过期,超过这个时间name这条cookie会消失
+	}
 	
+	var getCookie = function (name) {
+		var arr,reg=new RegExp("(^| )"+name+"=([^;]*)(;|$)");
+		if(arr=document.cookie.match(reg)) {
+			return unescape(arr[2])
+		} else {
+			return null
+		}
+	}     
+	//从1970年开始的毫秒数然后截取10位变成 从1970年开始的秒数
+	var timest = function () {
+	  var tmp = Date.parse( new Date() ).toString();
+	  tmp = tmp.substr(0,10);
+	  return tmp;
+	}
+
+	var shop_id = getCookie("shop_id")
+	var user_id = timest()
+
+	var url = "http://localhost:8888/im.html?room_id=" + timest()
+	url += "&device_id=7dc66b744a569d0fweb" + shop_id
+	url += "&user_id=" + user_id
+	url += "&nickname=" + user_id
+	url += "&shop_id=" + shop_id
+	url += "&shop_name=shopname" + shop_id
+	url += "&shop_face=https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg" 
+	url += "&face=http://img.touxiangwu.com/2020/3/uq6Bja.jpg"
+	url += "&pushurl=http://localhost:8888/open/push&platform=web"
+	url += "&platform=web"
+	url += "&suburl=ws://localhost:7923/ws"
+	
+	$("#hrefValue").attr('href', url)
+})
+</script>
 </html>

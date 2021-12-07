@@ -79,24 +79,13 @@
             } else {
                 self.options.user_id = user_id
                 setCookie('user_id', user_id)
-                
-                //判断用户从哪过来
-                var referer = _GET("referer")
-                if (referer && referer != "") {
-                    referer = decodeURI(referer)
-                    self.handleRefere(referer)
-                }
             }
             //console.log(self.options)
             self.handleTitle(self.options.shop_name)
         }, 
         handleTitle : function(title) {
             $("#top_title").html(title) 
-        },
-        handleRefere : function(msg) {
-            $('#console_box_input').val(msg) //拿到输入框内容
-            _.comet.send(null)
-        },
+        }
     }
 
     _.comet = {

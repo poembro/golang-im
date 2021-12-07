@@ -1,5 +1,19 @@
 (function(win){
-            
+    var setCookie = function (name, value) {
+        var date = new Date(); //获取当前时间
+        var exp = 10; //expiresDays缩写exp(有效时间)
+        date.setTime(date.getTime() + exp * 24 * 3600 * 1000); //格式化为cookie识别的时间
+        document.cookie=escape(name) + "=" + escape(value) + ";expires="+date.toGMTString(); //将name设置为10天后过期,超过这个时间name这条cookie会消失
+    }
+
+    var getCookie = function (name) {
+        var arr,reg=new RegExp("(^| )"+name+"=([^;]*)(;|$)");
+        if(arr=document.cookie.match(reg)) {
+            return unescape(arr[2])
+        } else {
+            return null
+        }
+    }         
     var randomNum = function (minNum,maxNum){ 
         switch(arguments.length){ 
             case 1: 
@@ -10,6 +24,7 @@
                 return 0;  
         }
     };
+
     var _GET = function (name){
         var reg = new RegExp("(^|&)"+ name +"=([^&]*)(&|$)");
         var r = win.location.search.substr(1).match(reg);
@@ -26,8 +41,16 @@
         },
         init:function (){
             var self = this
-            var shop_id = _GET("shop_id") || 8000
-            self.opt.shop_id = shop_id
+           
+            var tmp_shop_id = getCookie('shop_id')
+            if (tmp_shop_id) {
+                self.opt.shop_id = tmp_shop_id
+            } else {
+                var shop_id = _GET("shop_id") || 8000
+                self.opt.shop_id = shop_id
+                setCookie('shop_id', shop_id)
+            }
+            
             self.send(self.opt.shop_id, 0)
             setInterval(function() {
                 var num = randomNum(1, 10)
@@ -58,11 +81,12 @@
                 beforeSend:function(){
                     //return console.log('发送中...')
                 },
-                success:function(data){ 
-
+                success: function(data) {
                     if (data.success) {
                         self.opt.shop_id = shop_id 
-                        for (var i = 0; i < data.user_list.length; i++) { 
+                        if (!data.user_list || data.user_list.length <= 0) { return }
+                        var len = data.user_list.length 
+                        for (var i = 0; i < len; i++) { 
                             //过滤掉自己
                             self.show( data.user_list[i] ,flag)
                         }
@@ -89,33 +113,39 @@
         },
         show : function(m, flag) {
             var self = this
-            if (m.last.length > 5) {
-                m.last = JSON.parse(m.last)
-                if (!m.last.id) m.last.id = 0
+            var last = null
+            if (m.last_message.length > 0) {
+                last = JSON.parse(m.last_message[0])
             }
-            if (m.user.length > 5) {
-                m.user = JSON.parse(m.user) 
-                if (parseInt(m.user.mid) == parseInt(self.opt.shop_id)) {
-                   return
-                }
-            }
+        
             // 先删除旧的
-            var midLi = $("#" + m.user.mid)
+            var midLi = $("#" + m.device_id)
             if (midLi) {  midLi.remove() }
+            var url = "/admin/im.html?room_id=" + m.room_id
+            url += "&device_id=7dc66b744a569d0fweb" + m.shop_id
+            url += "&user_id=" + m.shop_id
+            url += "&nickname=" + m.shop_name
+            url += "&shop_id=" + m.user_id
+            url += "&shop_name=" + m.nickname
+            url += "&shop_face=" + m.face
+            url += "&face= " + m.shop_face
+            url += "&pushurl=" + m.pushurl
+            url += "&platform=" + m.platform
+            url += "&suburl=" + m.suburl
             
-            var html = ' <li class="mui-table-view-cell mui-media" id="'+m.user.mid+'">'
-            html += '<a href="/open/com?shop_id='+ m.user.shop_id + '&shop_name='+m.user.shop_name+'&mid='+m.user.mid+'&nickname='+m.user.nickname+'&seq='+ m.last.id +'">'
-            html += '<img class="mui-media-object mui-pull-left" src="'+m.user.face+'" />'
+            var html = ' <li class="mui-table-view-cell mui-media" id="'+m.device_id+'">'
+            html += '<a href="'+ url +'">'
+            html += '<img class="mui-media-object mui-pull-left" src="'+m.face+'" />'
             html += '<div class="mui-media-body">'
             if (m.online) {
                 html += '<span style="color:red;">在线</span>'
             } else {
                 html += '<span>离线</span>'
             }
-            html += '   ' + decodeURI(m.user.nickname)
-            html += '        <span class="time">'+ self.format( m.last.dateline) +  '</span>'
-            if (m.last && m.last.msg) {              
-               html += '    <p class="mui-ellipsis">'+ m.last.msg +'.</p>'
+            html += '   ' + decodeURI(m.nickname)
+            html += '        <span class="time">'+ self.format( last.dateline) +  '</span>'
+            if (last && last.msg) {              
+               html += '    <p class="mui-ellipsis">'+ last.msg +'.</p>'
             } else {
                html += '    <p class="mui-ellipsis">.</p>'
             }

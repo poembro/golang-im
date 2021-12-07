@@ -18,6 +18,12 @@ sleep 2
 nohup ./connect &
 echo "启动connect服务"
 
-
-
-# docker run -v $(pwd)/:/app -p 8080:8080 -p 8081:8081 -p 50100:50100 alpine .//app/main
+cd ../../demo
+rm -f demo
+go build -ldflags "-w -s" -v -o demo main.go
+echo "打包demo成功"
+pkill demo
+echo "停止demo服务"
+sleep 2
+nohup ./demo &
+echo "启动demo服务"

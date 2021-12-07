@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang-im/internal/logic/cache"
+	"golang-im/internal/logic/model"
 	"golang-im/pkg/pb"
 	"golang-im/pkg/protocol"
 	"io"
@@ -34,15 +35,13 @@ func (ro *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/auth/login": // 登录
 		apiLogin(w, r)
 	case "/open/push": // 接收消息 并发起grpc至logic服务的SendMessage方法
-	    apiPush(w, r)
-	case "/open/finduserlist": 	// 在线列表
-		// TODO
+		apiPush(w, r)
+	case "/open/finduserlist": // 在线列表
 		apiFindUserList(w, r)
-	case "/upload/file": 	//文件上传接口 
+	case "/upload/file": //文件上传接口
 		apiUpload(w, r)
 	default:
 		StaticServer(w, r)
-		//notFound(w)
 	}
 }
 
@@ -66,7 +65,7 @@ func serveJSON(w http.ResponseWriter, data interface{}) {
 // StaticServer 静态文件处理
 func StaticServer(w http.ResponseWriter, req *http.Request) {
 	indexs := []string{"index.html", "index.htm"}
-	filePath := "./dist" + req.URL.Path
+	filePath := "./dist" + req.URL.Path //注意 注意 注意:这里只能处理 dist 目录下的文件
 	fi, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
 		http.NotFound(w, req)
@@ -95,49 +94,67 @@ func StaticServer(w http.ResponseWriter, req *http.Request) {
 	http.ServeFile(w, req, filePath)
 }
 
-func apiUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-    reader, err := r.MultipartReader()
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    for {
-        part, err := reader.NextPart()
-        if err == io.EOF {
-            break
-        }
-
-        fmt.Printf("FileName=[%s], FormName=[%s]\n", part.FileName(), part.FormName())
-        if part.FileName() == "" {  // this is FormData
-            data, _ := ioutil.ReadAll(part)
-            fmt.Printf("FormData=[%s]\n", string(data))
-        } else {    // This is FileData
-			newPath := fmt.Sprintf("./upload/%d.%s", time.Now().Unix(), part.FileName())
-            dst, _ := os.Create(newPath)
-            defer dst.Close()
-            io.Copy(dst, part)
-        }
-    }
-}
-
 type resp struct {
 	Code    int    `json:"code"`
 	Msg     string `json:"msg,omitempty"`
 	Success bool   `json:"success,omitempty"`
 
-	UserList []string `json:"user_list,omitempty"`
-	Mobile string `json:"mobile,omitempty"`
-	Password string `json:"password,omitempty"`
+	Mobile   string       `json:"mobile,omitempty"`
+	Password string       `json:"password,omitempty"`
+	FileName string       `json:"filename,omitempty"`
+	UserList []model.User `json:"user_list,omitempty"`
+}
+
+func apiUpload(w http.ResponseWriter, r *http.Request) {
+	var (
+		newPath string // 暂时只处理1个文件上传
+	)
+	if r.Method != "POST" {
+		return
+	}
+	reader, err := r.MultipartReader()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+
+		fmt.Printf("FileName=[%s], FormName=[%s]\n", part.FileName(), part.FormName())
+		if part.FileName() == "" { // this is FormData
+			data, _ := ioutil.ReadAll(part)
+			fmt.Printf("FormData=[%s]\n", string(data))
+		} else { // This is FileData
+			newPath = fmt.Sprintf("/upload/%d_%s", time.Now().Unix(), part.FileName())
+			dst, _ := os.Create("./dist" + newPath) // 写入时需要dist 访问路径上不能带有 /dist
+			defer dst.Close()
+			io.Copy(dst, part)
+		}
+	}
+
+	res := resp{
+		Code:    0,
+		Success: false,
+		Msg:     "",
+	}
+	if newPath != "" {
+		res.Code = 1
+		res.Success = true
+		res.FileName = newPath
+	} else {
+		res.Code = 0
+		res.Msg = "上传失败"
+	}
+	serveJSON(w, res)
 }
 
 func apiRegister(w http.ResponseWriter, r *http.Request) {
 	var (
-
-		mobile string
+		mobile   string
 		password string
 	)
 
@@ -149,9 +166,9 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 	_, err := db.RedisCli.HSet("user_table", mobile, password).Result()
 
 	res := resp{
-		Code: 0,
+		Code:    0,
 		Success: false,
-		Msg: "",
+		Msg:     "",
 	}
 	if mobile != "" {
 		res.Code = 1
@@ -165,7 +182,7 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
 	var (
-		mobile string
+		mobile   string
 		password string
 	)
 
@@ -179,7 +196,7 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	res := resp{
 		Code:    0,
 		Success: false,
-		Msg: "",
+		Msg:     "",
 	}
 	if oldPwd == password {
 		res.Code = 1
@@ -195,6 +212,8 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	var (
 		shopId string
+		u      model.User
+		dst    []model.User
 	)
 
 	if r.Method == "POST" {
@@ -202,25 +221,52 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ids := make([]int64, 0)
-	idsTmp, err := db.RedisCli.ZRevRange("userList:" + shopId, 0, 50).Result()
+	// 查询在线人数
+	idsTmp, err := db.RedisCli.ZRevRange("userList:"+shopId, 0, 50).Result()
 	for _, v := range idsTmp {
 		id, _ := strconv.ParseInt(v, 10, 64)
 		ids = append(ids, id)
 	}
-	dst, err := cache.Online.KeysByUserIds(ids)
-    fmt.Printf("%+v \r\n", dst)
+	userIds, err := cache.Online.KeysByUserIds(ids)
 
-	//lastMessage := make(map[string]string,0)
-	//for _, v := range dst {
-		// 1.拿到每个用户的 偏移  hget user_id room_id
-		// 2.zrevrange("msglist:" .. room_id, min, max)
+	// 查询已读/未读
+	for _, v := range userIds {
+		if v == "" {
+			continue
+		}
+		logger.Logger.Debug("apiFindUserList", zap.Any("userJson", v))
+		json.Unmarshal([]byte(v), &u)
+		fmt.Printf("解析用户  : %+v", u)
+		if u.DeviceId == "" {
+			continue
+		}
+		index, err := cache.Online.GetMsgAckMapping(int64(u.UserId), u.RoomId) // 获取消息已读偏移
+		if err != nil {
+			fmt.Printf("获取消息已读偏移 error : %+v", err)
+			continue
+		}
+		count, err := cache.Online.GetMessageCount(u.RoomId, index, "+inf") // 拿到偏移去统计未读
+		if err != nil {
+			fmt.Printf("拿到偏移去统计未读 error : %+v", err)
+			continue
+		}
 
-	//}
+		lastMessage, err := cache.Online.GetMessageList(u.RoomId, 0, 0) // 取回消息
+		if err != nil {
+			fmt.Printf("取回消息 error : %+v", err)
+			continue
+		}
+
+		u.Unread = model.Int64(count)
+		u.LastMessage = lastMessage
+
+		dst = append(dst, u)
+	}
 
 	res := resp{
 		Code:    0,
 		Success: false,
-		Msg: "",
+		Msg:     "",
 	}
 	if err == nil {
 		res.Code = 1
@@ -234,15 +280,15 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPush(w http.ResponseWriter, r *http.Request) {
-	var ( 
+	var (
 		userId string
 		roomId string
 		shopId string
-		typ string
-		msg string
+		typ    string
+		msg    string
 
-		msgId int64
-		PushAllTopic  = "push_all_topic"  // 全服消息队列
+		msgId        int64
+		PushAllTopic = "push_all_topic" // 全服消息队列
 	)
 
 	if r.Method == "POST" {
@@ -259,15 +305,15 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 		userId, shopId, typ, msg, roomId, time.Now().Unix(), msgId)
 
 	buf := &pb.PushMsg{
-        Type:      pb.PushMsg_ROOM,
-        Operation: protocol.OpSendMsgReply,
-        Speed:     2,
-        Server:    config.Connect.LocalAddr,
-        RoomId:    roomId,
-        Msg:       []byte(body),
+		Type:      pb.PushMsg_ROOM,
+		Operation: protocol.OpSendMsgReply,
+		Speed:     2,
+		Server:    config.Connect.LocalAddr,
+		RoomId:    roomId,
+		Msg:       []byte(body),
 	}
-    bytes, err := proto.Marshal(buf)
-    if err == nil {
+	bytes, err := proto.Marshal(buf)
+	if err == nil {
 		// 推送 或者 写入kafka 队列等
 		err = cache.Queue.Publish(PushAllTopic, bytes)
 		if err == nil {
@@ -279,7 +325,7 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 	res := resp{
 		Code:    0,
 		Success: false,
-		Msg: "",
+		Msg:     "",
 	}
 	if err == nil {
 		res.Code = 1
@@ -290,7 +336,6 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 	}
 	serveJSON(w, res)
 }
-
 
 func main() {
 	logger.Init()

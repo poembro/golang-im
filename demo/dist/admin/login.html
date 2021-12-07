@@ -47,6 +47,29 @@
 <script src="../js/jquery.min.js"  type="text/javascript"></script>
  
 <script type="text/javascript">
+var setCookie = function (name, value) {
+	var date = new Date(); //获取当前时间
+	var exp = 10; //expiresDays缩写exp(有效时间)
+	date.setTime(date.getTime() + exp * 24 * 3600 * 1000); //格式化为cookie识别的时间
+	document.cookie=escape(name) + "=" + escape(value) + ";expires="+date.toGMTString(); //将name设置为10天后过期,超过这个时间name这条cookie会消失
+}
+
+var getCookie = function (name) {
+	var arr,reg=new RegExp("(^| )"+name+"=([^;]*)(;|$)");
+	if(arr=document.cookie.match(reg)) {
+		return unescape(arr[2])
+	} else {
+		return null
+	}
+}     
+
+//从1970年开始的毫秒数然后截取10位变成 从1970年开始的秒数
+var timest = function () {
+  var tmp = Date.parse( new Date() ).toString();
+  tmp = tmp.substr(0,10);
+  return tmp;
+}
+
 var User = {
 	flag : true,
 	init : function() {
@@ -84,7 +107,9 @@ var User = {
 			self.flag = true;
 			if (data.success)
 			{ 
-				window.localStorage.setItem("mobile", mobile);
+				// 生成商户号
+				setCookie('shop_id', timest())
+
 				location.href = "/admin/find.html";
 				return false;
 			}

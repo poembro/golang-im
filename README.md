@@ -7,7 +7,7 @@
 - 简洁
 - 高性能
 - 支持心跳来维持在线
-- 使用 redis 发布订阅做推送
+- 使用 redis 发布订阅做推送 (目前demo为了简洁采用redis，生产环境简单开发可以更换为 kafka 等)
 - 采用 TLV 协议格式，保持与[goim](https://github.com/Terry-Mao/goim)一致
 - 采用框架结构分层设计参考[gim](https://github.com/alberliu/gim)
 - 采用 etcd 作为服务发现,grpc客户端负载均衡 实现分布式高可用
@@ -19,7 +19,41 @@
 ## 描述
 - 在学习goim 与 gim 等项目代码后，做的二者结合，用最精简的方式达到练手实践效果。 
 
+---
 
+## 项目目录简介
+``` 
+cmd                        golang 服务启动入口
+    |___connect            接入层 提供对外长连接端口 如 websocket tcp ，提供对内grpc服务端口
+    |___logic              逻辑处理层 提供对内grpc服务端口 
+config                     配置 开发环境 本地环境 生产环境
+demo                       提供一套完整的 用户端聊天界面 与 客服人员回答界面
+    |___dist                 静态文件
+       |___ admin           客服人员聊天静态页面  (一个客服可以跟多个用户聊天)
+       |___ upload          聊天的图片，上传目录
+       |___ im.html         用户端网页咨询窗口的静态页面
+internal             
+    |___connect             长连接协议处理 ,mq 订阅推送处理)
+    |___logic               内部鉴权,消息逻辑 处理
+       |___ api            grpc 服务方法
+       |___ cache          消息缓存
+       |___ model          用户模型
+       |___ service        服务层为grpc 提供服务逻辑处理
+pkg 
+    |___ db                外部数据源
+    |___ gerrors           grpc 错误处理
+    |___ gn                epoll tcp服务框架 注:这里解释下,由于改了协议所以没有直接引用 [gn](https://github.com/alberliu/gn)
+    |___ grpclib           采用etcd 做grpc 服务注册、服务发现
+    |___ interceptor       grpc 服务拦截 
+    |___ logger            采用zap 做日志库
+    |___ pb                proto 生成后的文件
+    |___ proto             proto定义grpc 方法和消息结构
+    |___ protocol          TLV消息头 同 [goim](https://github.com/Terry-Mao/goim)  
+    |___ rpc               构建grpc客户端 及 处理服务发现节点
+    |___ urlwhitelist      grpc 服务白名单，如有grpc服务方法需要授权访问 防止外部人员向任意房间发消息
+    |___ util              工具
+ 
+``` 
 
 ---
 
@@ -93,14 +127,11 @@ networks:
 [root@iZ~]#cd /data/web/golang-im
 [root@iZ~]#sh run.sh
 
-4.运行测试网页  点击启动按钮 建立websocket连接，点击发送按钮  发送消息
-[root@iZ~]#cd golang-im/test
-[root@iZ~]# go run main.go
-http://localhost:1999/
-
-
-?key=8dc66b744a569d0fd04864ea599b2371&suburl=ws://47.111.69.116:7923/ws&pushurl=https://kefu.youuue.com/open/push&platform=web&referer=http://m.youuue.com/&shop_name=aaaaaaa&refer=&mid=11294&nickname=1117696644&shop_face=https://gamecat.youuue.com/default.jpg&room_id=live://1000011294&face=https://gamecat.youuue.com/default.jpg&shop_id=10000&accepts=[1000011294,10000,10000]
-
+4.运行测试网页  
+ 4.1 浏览器打开 http://localhost:8888/admin/login.html
+ 4.2 注册 输入手机号 密码 ----> 登录  输入手机号 密码
+ 4.3 点击 底部导航 ”发现“页面  -----> 点击浮动头像  即:表示 打开用户端咨询窗口、
+ 4.4 点击 底部导航 ”消息“ 页面  -----> 可以看到 用户列表  即:表示 当前所有找我咨询的用户   -----> 点击对应用户头像 即:回复咨询页面
 ``` 
 
 
