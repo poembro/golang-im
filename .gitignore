@@ -7,4 +7,5 @@ cmd/connect/nohup.out
 cmd/logic/nohup.out
 cmd/connect/connect
 cmd/logic/logic
-internal/logic/cache/online.go
+demo/demo
+demo/nohup.out

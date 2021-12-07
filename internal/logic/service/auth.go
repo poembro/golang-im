@@ -24,37 +24,17 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
         err error
     )
     //解析body  得到 deviceId, userId
-    /*
-       p.Body = {
-           room_id:'live://1000', //将消息发送到指定房间
-           accepts:'[1000,1001,1002]',//接收系统全局房间的消息
-           device_id:'1xxxxxDeviceIdxxx假定为设备idxx',
-
-           user_id: '663291537152950273',
-           user_name:'随机用户001',
-           user_face:'/static/wap/img/portrait.jpg',
-
-           shop_id:0,
-           shop_name:'杂货铺老板',
-           shop_face:'/static/wap/img/portrait.jpg',
-
-           platform:'web',
-
-           suburl : "ws://192.168.3.222:9999/sub",
-           pushurl:"http://192.168.3.222:9999/open/push",
-       }
-    */
     json.Unmarshal(body, &user)
-
-    // 标记用户在设备上登录
-    err = cache.Online.AddMapping(int64(user.UserId), user.DeviceId, connAddr, string(body))
-    logger.Sugar.Infow("SignIn", "user", user)
-
-    // 写入商户列表
-    err = cache.Online.AddShopList(user.ShopId, fmt.Sprintf("%d", user.UserId))
 
     userId = int64(user.UserId)
     deviceId = user.DeviceId
+    // 标记用户在设备上登录
+    err = cache.Online.AddMapping(userId, deviceId, connAddr, string(body))
+    logger.Sugar.Infow("SignIn", "user", user)
+
+    // 写入商户列表
+    err = cache.Online.AddShopList(user.ShopId, fmt.Sprintf("%d", userId))
+
     return deviceId, userId, err
 }
 

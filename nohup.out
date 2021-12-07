@@ -1,5 +1,0 @@
-2021-12-03 16:25:27.706	INFO	db/db.go:63	init redis
-2021-12-03 16:25:27.714	INFO	db/db.go:75	init redis ok
-etcd  GetAllService ---k-> goim:///connectint_grpc_service/0.0.0.0:50000  ---v-> 0.0.0.0:50000
-etcd Register
-2021-12-03 16:25:27.750	INFO	logic/main.go:68	rpc服务已经开启	{"logic_rpc_server_ip_port": "192.168.82.110:50102"}

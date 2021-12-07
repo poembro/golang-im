@@ -236,7 +236,7 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 		}
 		logger.Logger.Debug("apiFindUserList", zap.Any("userJson", v))
 		json.Unmarshal([]byte(v), &u)
-		fmt.Printf("解析用户  : %+v", u)
+		//fmt.Printf("解析用户  : %+v", u)
 		if u.DeviceId == "" {
 			continue
 		}

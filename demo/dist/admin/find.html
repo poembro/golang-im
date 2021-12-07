@@ -251,12 +251,12 @@ $(document).ready(function(){
 	var shop_id = getCookie("shop_id")
 	var user_id = timest()
 
-	var url = "http://localhost:8888/im.html?room_id=" + timest()
-	url += "&device_id=7dc66b744a569d0fweb" + shop_id
+	var url = "http://localhost:8888/im.html?room_id=" + timest()  // 可以随机值时间戳 
+	url += "&device_id=7dc66b744a569d0fweb" + shop_id  // 固定值
 	url += "&user_id=" + user_id
 	url += "&nickname=" + user_id
 	url += "&shop_id=" + shop_id
-	url += "&shop_name=shopname" + shop_id
+	url += "&shop_name=shopName" + shop_id
 	url += "&shop_face=https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg" 
 	url += "&face=http://img.touxiangwu.com/2020/3/uq6Bja.jpg"
 	url += "&pushurl=http://localhost:8888/open/push&platform=web"

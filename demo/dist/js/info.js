@@ -137,10 +137,10 @@
             html += '<a href="'+ url +'">'
             html += '<img class="mui-media-object mui-pull-left" src="'+m.face+'" />'
             html += '<div class="mui-media-body">'
-            if (m.online) {
-                html += '<span style="color:red;">在线</span>'
+            if (m.unread > 0) {
+                html += '<span style="color:red;">有新消息</span>'
             } else {
-                html += '<span>离线</span>'
+                html += '<span></span>'
             }
             html += '   ' + decodeURI(m.nickname)
             html += '        <span class="time">'+ self.format( last.dateline) +  '</span>'
