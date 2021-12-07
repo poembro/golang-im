@@ -18,7 +18,6 @@ const (
     _prefixMidServer    = "userId_%d" // mid -> DeviceId:server
     _prefixKeyServer    = "deviceId_%s" // deviceId -> server
     _prefixServerOnline = "ol_%s"  // server -> online
-
     _prefixMessageAck = "user_msg_ack_%d"  // user -> ack
     Expire = 75 * time.Second
 )
@@ -113,13 +112,11 @@ func (c *online) DelMapping(userId int64, deviceId string) error {
     return nil
 }
 
-
-
 // AddMessageACKMapping add a msg ack mapping. 记录用户已读偏移
 //    HSET userId_123 8000 100000000
-func (c *online) AddMessageACKMapping(userId int64, roomId string, seq int64) error {
+func (c *online) AddMessageACKMapping(userId int64, roomId string, deviceAck int64) error {
     // 一个用户有N个房间 每个房间都有个已读偏移位置
-    _, err := db.RedisCli.HSet(keyMessageAck(userId), roomId, seq).Result()
+    _, err := db.RedisCli.HSet(keyMessageAck(userId), roomId, deviceAck).Result()
     if err != nil {
         return gerrors.WrapError(err)
     }
@@ -132,8 +129,7 @@ func (c *online) AddMessageACKMapping(userId int64, roomId string, seq int64) er
     return nil
 }
 
-
-// GetMsgAckMapping 读取某个用户的已读偏移
+// GeMessageAckMapping 读取某个用户的已读偏移
 func (c *online) GeMessageAckMapping(userId int64, roomId string) (string, error) {
     // 一个用户有N个房间 每个房间都有个已读偏移位置
     dst, err := db.RedisCli.HGet(keyMessageAck(userId), roomId).Result()
