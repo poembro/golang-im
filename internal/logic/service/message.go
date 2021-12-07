@@ -2,9 +2,7 @@ package service
 
 import (
     "context"
-    "encoding/json"
     "golang-im/internal/logic/cache"
-    "golang-im/internal/logic/model"
     "golang-im/pkg/grpclib"
     "golang-im/pkg/rpc"
     "strconv"
@@ -20,11 +18,7 @@ import (
 
     //"golang-im/pkg/rpc"
     "golang-im/pkg/gerrors"
-)
-
-const (
-    PushRoomTopic = "push_room_topic" // 房间消息队列
-    PushAllTopic  = "push_all_topic"  // 全服消息队列
+    "golang-im/config"
 )
 
 type messageService struct{}
@@ -62,7 +56,7 @@ func (s *messageService) SendRoom(ctx context.Context, msg *pb.PushMsg) error {
     if err != nil {
         return gerrors.WrapError(err)
     }
-    err = cache.Queue.Publish(PushAllTopic, bytes)
+    err = cache.Queue.Publish(config.Global.PushAllTopic, bytes)
     if err != nil {
         return err
     }
@@ -79,27 +73,7 @@ func (*messageService) Sync(ctx context.Context, userId, seq int64) (*pb.SyncRes
 
 
 // MessageACK 消息确认机制
-func (s *messageService) MessageACK(ctx context.Context, deviceId string, userId, deviceAck, receiveTime int64 ) error {
-    var (
-    	u model.User
-    )
-    userIds, err := cache.Online.KeysByUserIds([]int64{userId})
-    if err != nil {
-        return err
-    }
-
-    for _, v := range userIds {
-        if v == "" {
-            continue
-        }
-        logger.Logger.Debug("MessageACK", zap.Any("userJson", v))
-        json.Unmarshal([]byte(v), &u)
-        if u.DeviceId != deviceId {
-            continue
-        }
-
-        cache.Online.AddMsgAckMapping(userId, u.RoomId, deviceAck)
-    }
-
+func (s *messageService) MessageACK(ctx context.Context, deviceId, roomId string, userId, deviceAck, receiveTime int64 ) error {
+    cache.Online.AddMessageACKMapping(userId, roomId, deviceAck) 
     return nil
 }

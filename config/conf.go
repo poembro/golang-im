@@ -19,6 +19,7 @@ type GlobalConf struct {
     EtcdAddr    string
     RedisIP       string
     RedisPassword string
+    PushAllTopic  string 
 }
 
 // ConnectConf Connect配置

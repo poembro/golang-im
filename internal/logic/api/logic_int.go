@@ -54,7 +54,7 @@ func (*LogicIntServer) SendMessage(ctx context.Context, req *pb.PushMsgReq) (*pb
 
 // MessageACK 设备收到消息回执
 func (s *LogicIntServer) MessageACK(ctx context.Context, req *pb.MessageACKReq) (*pb.MessageACKResp, error) {
-    err := service.MessageService.MessageACK(ctx, req.DeviceId, req.UserId, req.DeviceAck, req.ReceiveTime)
+    err := service.MessageService.MessageACK(ctx, req.DeviceId, req.RoomId, req.UserId, req.DeviceAck, req.ReceiveTime)
     return &pb.MessageACKResp{}, err
 }
 

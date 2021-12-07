@@ -14,6 +14,7 @@ func initLocalConf(ip string) {
         EtcdAddr:    "http://" + ip + ":2379,http://" + ip + ":2479,http://" + ip + ":2579",
         RedisIP:       ip + ":6379",  //在使用
         RedisPassword: "",
+        PushAllTopic: "push_all_topic", // 全服消息队列
     }
 
     // connect 服务相关配置

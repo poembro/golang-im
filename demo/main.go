@@ -3,10 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"golang-im/internal/logic/cache"
-	"golang-im/internal/logic/model"
-	"golang-im/pkg/pb"
-	"golang-im/pkg/protocol"
+
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,9 +14,14 @@ import (
 	"golang-im/config"
 	"golang-im/pkg/db"
 	"golang-im/pkg/logger"
-
+	"golang-im/pkg/gerrors"
+	"golang-im/internal/logic/cache"
+	"golang-im/internal/logic/model"
+	"golang-im/pkg/pb"
+	"golang-im/pkg/protocol"
+	
 	"go.uber.org/zap"
-
+	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -221,8 +223,8 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ids := make([]int64, 0)
-	// 查询在线人数
-	idsTmp, err := db.RedisCli.ZRevRange("userList:"+shopId, 0, 50).Result()
+	// 查询在线人数 
+	idsTmp, err := GetShopList("userList:"+shopId, 0, 50)
 	for _, v := range idsTmp {
 		id, _ := strconv.ParseInt(v, 10, 64)
 		ids = append(ids, id)
@@ -240,18 +242,18 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 		if u.DeviceId == "" {
 			continue
 		}
-		index, err := cache.Online.GetMsgAckMapping(int64(u.UserId), u.RoomId) // 获取消息已读偏移
+		index, err := cache.Online.GeMessageAckMapping(int64(u.UserId), u.RoomId) // 获取消息已读偏移
 		if err != nil {
 			fmt.Printf("获取消息已读偏移 error : %+v", err)
 			continue
 		}
-		count, err := cache.Online.GetMessageCount(u.RoomId, index, "+inf") // 拿到偏移去统计未读
+		count, err := GetMessageCount(u.RoomId, index, "+inf") // 拿到偏移去统计未读
 		if err != nil {
 			fmt.Printf("拿到偏移去统计未读 error : %+v", err)
 			continue
 		}
 
-		lastMessage, err := cache.Online.GetMessageList(u.RoomId, 0, 0) // 取回消息
+		lastMessage, err := GetMessageList(u.RoomId, 0, 0) // 取回消息
 		if err != nil {
 			fmt.Printf("取回消息 error : %+v", err)
 			continue
@@ -279,16 +281,15 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	serveJSON(w, res)
 }
 
+
 func apiPush(w http.ResponseWriter, r *http.Request) {
 	var (
 		userId string
 		roomId string
 		shopId string
 		typ    string
-		msg    string
-
-		msgId        int64
-		PushAllTopic = "push_all_topic" // 全服消息队列
+		msg    string 
+		msgId        int64 
 	)
 
 	if r.Method == "POST" {
@@ -315,10 +316,12 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 	bytes, err := proto.Marshal(buf)
 	if err == nil {
 		// 推送 或者 写入kafka 队列等
-		err = cache.Queue.Publish(PushAllTopic, bytes)
+		err = cache.Queue.Publish(config.Global.PushAllTopic, bytes)
 		if err == nil {
 			// 消息持久化
-			err = cache.Online.AddMessageList(roomId, msgId, body)
+			err = AddMessageList(roomId, msgId, body) 
+			// 写入商户列表
+			AddShopList(shopId, userId)
 		}
 	}
 
@@ -352,4 +355,72 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+//下方 redis 操作区域
+
+// AddShopList 将用户添加到商户列表
+// zadd  shop_id  time() user_id
+func AddShopList(shopId string, userId string) error {
+    score := time.Now().Unix()
+    err := db.RedisCli.ZAdd("userList:" + shopId, redis.Z{
+        Score: float64(score),
+        Member:userId,
+    }).Err()
+
+    if err != nil {
+        return gerrors.WrapError(err)
+    }
+
+    return nil
+}
+
+// GetShopList 查询在线人数
+// zrevrange  shop_id  0, 50
+func GetShopList(shopId string, start, stop int64) ([]string, error)  {
+    ids, err := db.RedisCli.ZRevRange("userList:" + shopId, start, stop).Result()
+
+    if err != nil {
+        return ids, gerrors.WrapError(err)
+    }
+
+    return ids, nil
+}
+
+
+// AddMessageList 将消息添加到对应房间 roomId
+// zadd  roomId  time() msg
+func AddMessageList(roomId string, id int64, msg string) error {
+    err := db.RedisCli.ZAddNX("messagelist:" + roomId, redis.Z{
+        Score: float64(id),
+        Member: msg,
+    }).Err()
+
+    if err != nil {
+        return gerrors.WrapError(err)
+    }
+
+    return nil
+}
+
+// GetMessageCount 统计未读
+func GetMessageCount(roomId , start, stop string) (int64, error) {
+    dst, err := db.RedisCli.ZCount("messagelist:" + roomId, start, stop).Result()
+
+    if err != nil {
+        return dst, gerrors.WrapError(err)
+    }
+
+    return dst, nil
+}
+
+// GetMessageList 取回消息
+func GetMessageList(roomId string, start, stop int64) ([]string, error) {
+    dst, err := db.RedisCli.ZRevRange("messagelist:" + roomId, start, stop).Result()
+
+    if err != nil {
+        return dst, gerrors.WrapError(err)
+    }
+
+    return dst, nil
 }

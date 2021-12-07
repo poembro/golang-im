@@ -13,14 +13,9 @@ import (
     "go.uber.org/zap"
 )
 
-const (
-    PushRoomTopic = "push_room_topic" // 房间消息队列
-    PushAllTopic  = "push_all_topic"  // 全服消息队列
-)
-
 // StartSubscribe 将redis的数据 推送到全局Map
 func StartSubscribe() {
-    channel := db.RedisCli.Subscribe(PushRoomTopic, PushAllTopic).Channel()
+    channel := db.RedisCli.Subscribe(config.Global.PushAllTopic).Channel()
     for i := 0; i < config.Connect.SubscribeNum; i++ {
         go handleRedisMsg(channel)
     }
@@ -28,7 +23,7 @@ func StartSubscribe() {
 
 func handleRedisMsg(channel <-chan *redis.Message) {
     for msg := range channel {
-        if msg.Channel == PushAllTopic {
+        if msg.Channel == config.Global.PushAllTopic {
             pushMsg := new(pb.PushMsg)
             err := proto.Unmarshal([]byte(msg.Payload), pushMsg)
             if err != nil {

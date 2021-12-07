@@ -3,7 +3,6 @@ package service
 import (
     "context"
     "encoding/json"
-    "fmt"
     "golang-im/internal/logic/cache"
     "golang-im/internal/logic/model"
     "golang-im/pkg/logger"
@@ -31,10 +30,7 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
     // 标记用户在设备上登录
     err = cache.Online.AddMapping(userId, deviceId, connAddr, string(body))
     logger.Sugar.Infow("SignIn", "user", user)
-
-    // 写入商户列表
-    err = cache.Online.AddShopList(user.ShopId, fmt.Sprintf("%d", userId))
-
+ 
     return deviceId, userId, err
 }
 

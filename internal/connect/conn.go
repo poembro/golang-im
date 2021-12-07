@@ -156,6 +156,7 @@ func (c *Conn) MessageACK(p *protocol.Proto) {
         &pb.MessageACKReq{
             UserId:      c.UserId,
             DeviceId:    c.DeviceId,
+            RoomId:      c.RoomId,
             DeviceAck:   int64(index), //这里需要 body转int64 标识已经读到哪里了
             ReceiveTime: time.Now().UnixNano(),
         })
