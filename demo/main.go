@@ -12,17 +12,17 @@ import (
 	"time"
 
 	"golang-im/config"
-	"golang-im/pkg/db"
-	"golang-im/pkg/logger"
-	"golang-im/pkg/gerrors"
 	"golang-im/internal/logic/cache"
 	"golang-im/internal/logic/model"
+	"golang-im/pkg/db"
+	"golang-im/pkg/gerrors"
+	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
 	"golang-im/pkg/protocol"
-	
-	"go.uber.org/zap"
+
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/proto"
+	"go.uber.org/zap"
 )
 
 type router struct {
@@ -96,10 +96,11 @@ func StaticServer(w http.ResponseWriter, req *http.Request) {
 	http.ServeFile(w, req, filePath)
 }
 
+// api响应结构体
 type resp struct {
 	Code    int    `json:"code"`
-	Msg     string `json:"msg,omitempty"`
-	Success bool   `json:"success,omitempty"`
+	Msg     string `json:"msg"`
+	Success bool   `json:"success"`
 
 	Mobile   string       `json:"mobile,omitempty"`
 	Password string       `json:"password,omitempty"`
@@ -223,7 +224,7 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ids := make([]int64, 0)
-	// 查询在线人数 
+	// 查询在线人数
 	idsTmp, err := GetShopList("userList:"+shopId, 0, 50)
 	for _, v := range idsTmp {
 		id, _ := strconv.ParseInt(v, 10, 64)
@@ -281,15 +282,14 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	serveJSON(w, res)
 }
 
-
 func apiPush(w http.ResponseWriter, r *http.Request) {
 	var (
 		userId string
 		roomId string
 		shopId string
 		typ    string
-		msg    string 
-		msgId        int64 
+		msg    string
+		msgId  int64
 	)
 
 	if r.Method == "POST" {
@@ -302,7 +302,7 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 
 	msgId = time.Now().UnixNano() // 消息唯一id 为了方便临时demo采用该方案， 后期线上可以用雪花算法
 
-	body := fmt.Sprintf(`{"user_id" : %s,"shop_id":%s,"type" : "%s","msg" : "%s","room_id" : "%s","dateline" : %d,"id" : "%d"}`,
+	body := fmt.Sprintf(`{"user_id":%s, "shop_id":%s, "type":"%s", "msg":"%s", "room_id":"%s", "dateline":%d, "id":"%d"}`,
 		userId, shopId, typ, msg, roomId, time.Now().Unix(), msgId)
 
 	buf := &pb.PushMsg{
@@ -319,9 +319,9 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 		err = cache.Queue.Publish(config.Global.PushAllTopic, bytes)
 		if err == nil {
 			// 消息持久化
-			err = AddMessageList(roomId, msgId, body) 
+			err = AddMessageList(roomId, msgId, body)
 			// 写入商户列表
-			AddShopList(shopId, userId)
+			err = AddShopList(shopId, userId)
 		}
 	}
 
@@ -362,65 +362,69 @@ func main() {
 // AddShopList 将用户添加到商户列表
 // zadd  shop_id  time() user_id
 func AddShopList(shopId string, userId string) error {
-    score := time.Now().Unix()
-    err := db.RedisCli.ZAdd("userList:" + shopId, redis.Z{
-        Score: float64(score),
-        Member:userId,
-    }).Err()
+	score := time.Now().Unix()
+	key := fmt.Sprintf("userList:%s", shopId)
+	err := db.RedisCli.ZAdd(key, redis.Z{
+		Score:  float64(score),
+		Member: userId,
+	}).Err()
 
-    if err != nil {
-        return gerrors.WrapError(err)
-    }
+	if err != nil {
+		return gerrors.WrapError(err)
+	}
 
-    return nil
+	return nil
 }
 
 // GetShopList 查询在线人数
 // zrevrange  shop_id  0, 50
-func GetShopList(shopId string, start, stop int64) ([]string, error)  {
-    ids, err := db.RedisCli.ZRevRange("userList:" + shopId, start, stop).Result()
+func GetShopList(shopId string, start, stop int64) ([]string, error) {
+	key := fmt.Sprintf("userList:%s", shopId)
+	ids, err := db.RedisCli.ZRevRange(key, start, stop).Result()
 
-    if err != nil {
-        return ids, gerrors.WrapError(err)
-    }
+	if err != nil {
+		return ids, gerrors.WrapError(err)
+	}
 
-    return ids, nil
+	return ids, nil
 }
-
 
 // AddMessageList 将消息添加到对应房间 roomId
 // zadd  roomId  time() msg
 func AddMessageList(roomId string, id int64, msg string) error {
-    err := db.RedisCli.ZAddNX("messagelist:" + roomId, redis.Z{
-        Score: float64(id),
-        Member: msg,
-    }).Err()
+	key := fmt.Sprintf("messagelist:%s", roomId)
+	err := db.RedisCli.ZAddNX(key, redis.Z{
+		Score:  float64(id),
+		Member: msg,
+	}).Err()
 
-    if err != nil {
-        return gerrors.WrapError(err)
-    }
+	if err != nil {
+		return gerrors.WrapError(err)
+	}
 
-    return nil
+	return nil
 }
 
 // GetMessageCount 统计未读
-func GetMessageCount(roomId , start, stop string) (int64, error) {
-    dst, err := db.RedisCli.ZCount("messagelist:" + roomId, start, stop).Result()
+func GetMessageCount(roomId, start, stop string) (int64, error) {
+	key := fmt.Sprintf("messagelist:%s", roomId)
+	dst, err := db.RedisCli.ZCount(key, start, stop).Result()
 
-    if err != nil {
-        return dst, gerrors.WrapError(err)
-    }
+	if err != nil {
+		return dst, gerrors.WrapError(err)
+	}
 
-    return dst, nil
+	return dst, nil
 }
 
 // GetMessageList 取回消息
 func GetMessageList(roomId string, start, stop int64) ([]string, error) {
-    dst, err := db.RedisCli.ZRevRange("messagelist:" + roomId, start, stop).Result()
+	key := fmt.Sprintf("messagelist:%s", roomId)
+	dst, err := db.RedisCli.ZRevRange(key, start, stop).Result()
 
-    if err != nil {
-        return dst, gerrors.WrapError(err)
-    }
+	if err != nil {
+		return dst, gerrors.WrapError(err)
+	}
 
-    return dst, nil
+	return dst, nil
 }
