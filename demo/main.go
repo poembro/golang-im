@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"golang-im/pkg/util"
 
 	"io"
 	"io/ioutil"
@@ -31,12 +32,14 @@ type router struct {
 func (ro *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/auth/logout": // 退出
-		http.Redirect(w, r, "/auth/login", http.StatusFound)
+		http.Redirect(w, r, "/admin/login.html", http.StatusFound)
 	case "/auth/register": // 注册
 		apiRegister(w, r)
 	case "/auth/login": // 登录
 		apiLogin(w, r)
-	case "/open/push": // 接收消息 并发起grpc至logic服务的SendMessage方法
+	case "/open/url": // 获取授权参数 后才允许连接推送服务
+		apiUrl(w, r)
+	case "/open/push": // 接收消息写入redis or mq
 		apiPush(w, r)
 	case "/open/finduserlist": // 在线列表
 		apiFindUserList(w, r)
@@ -49,19 +52,6 @@ func (ro *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func notFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
-}
-
-func serveJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Server", "poembro")
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	content, err := json.Marshal(data)
-	if err == nil {
-		w.Write(content)
-	} else {
-		w.Write([]byte(`{"code":0, "error":"解析JSON出错"}`))
-	}
 }
 
 // StaticServer 静态文件处理
@@ -96,6 +86,8 @@ func StaticServer(w http.ResponseWriter, req *http.Request) {
 	http.ServeFile(w, req, filePath)
 }
 
+// api 接口区
+
 // api响应结构体
 type resp struct {
 	Code    int    `json:"code"`
@@ -106,6 +98,67 @@ type resp struct {
 	Password string       `json:"password,omitempty"`
 	FileName string       `json:"filename,omitempty"`
 	UserList []model.User `json:"user_list,omitempty"`
+	Data     model.User   `json:"data,omitempty"`
+}
+
+func serveJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Server", "poembro")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	body, err := json.Marshal(data)
+	if err == nil {
+		w.Write(body)
+	} else {
+		w.Write([]byte(`{"code":0, "error":"解析JSON出错"}`))
+	}
+}
+
+// 客服聊天场景 外链url获取
+func apiUrl(w http.ResponseWriter, r *http.Request) {
+	var (
+		mobile string
+	)
+
+	if r.Method == "POST" {
+		mobile = r.FormValue("mobile")
+	}
+
+	if mobile == "" {
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "手机号不能为空",
+		})
+		return
+	}
+
+	sID, err := util.SFlake.GetID()
+	if err != nil {
+		fmt.Printf("雪花算法 error: %s \r\n", err.Error())
+	}
+	platform := "web"
+	// 客服聊天场景
+	dst := model.User{
+		UserId:   model.Int64(sID),                                                       //   用户大多是临时过来咨询,所以这里采用随机唯一
+		Nickname: fmt.Sprintf("用户%d", sID),                                               // 随机昵称
+		Face:     "http://img.touxiangwu.com/2020/3/uq6Bja.jpg",                          // 随机头像
+		DeviceId: fmt.Sprintf("%s_%d", platform, sID),                                    // 多个平台达到的效果不一样
+		RoomId:   fmt.Sprintf("%d", sID),                                                 //房间号唯一否则消息串房间
+		ShopId:   mobile,                                                                 // 登录该后台的手机号
+		ShopName: fmt.Sprintf("客服%s", mobile),                                            // 客服昵称
+		ShopFace: "https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg", // 客服头像
+		Platform: platform,
+		Suburl:   "ws://localhost:7923/ws",                       // 订阅地址
+		Pushurl:  "http://localhost:8888/open/push&platform=web", // 发布地址
+	}
+
+	serveJSON(w, resp{
+		Code:    1,
+		Success: true,
+		Msg:     "success",
+		Data:    dst,
+	})
 }
 
 func apiUpload(w http.ResponseWriter, r *http.Request) {
@@ -139,22 +192,22 @@ func apiUpload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res := resp{
-		Code:    0,
-		Success: false,
-		Msg:     "",
-	}
 	if newPath != "" {
-		res.Code = 1
-		res.Success = true
-		res.FileName = newPath
+		serveJSON(w, resp{
+			Code:     1,
+			Success:  true,
+			FileName: newPath,
+		})
 	} else {
-		res.Code = 0
-		res.Msg = "上传失败"
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "上传失败",
+		})
 	}
-	serveJSON(w, res)
 }
 
+// apiRegister 用户注册接口  为了演示,临时采用redis存储
 func apiRegister(w http.ResponseWriter, r *http.Request) {
 	var (
 		mobile   string
@@ -165,22 +218,20 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 		mobile = r.FormValue("mobile")
 		password = r.FormValue("password")
 	}
-
+	if mobile == "" || password == "" {
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "参数mobile or password不能为空",
+		})
+		return
+	}
 	_, err := db.RedisCli.HSet("user_table", mobile, password).Result()
-
-	res := resp{
-		Code:    0,
-		Success: false,
-		Msg:     "",
-	}
-	if mobile != "" {
-		res.Code = 1
-		res.Success = true
-	} else {
-		res.Code = 0
-		res.Msg = "参数" + mobile + "不能为空" + err.Error()
-	}
-	serveJSON(w, res)
+	serveJSON(w, resp{
+		Code:    1,
+		Success: true,
+		Msg:     err.Error(),
+	})
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
@@ -196,19 +247,18 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 
 	oldPwd, err := db.RedisCli.HGet("user_table", mobile).Result()
 
-	res := resp{
-		Code:    0,
-		Success: false,
-		Msg:     "",
-	}
 	if oldPwd == password {
-		res.Code = 1
-		res.Success = true
+		serveJSON(w, resp{
+			Code:    1,
+			Success: true,
+		})
 	} else {
-		res.Code = 0
-		res.Msg = "参数" + mobile + "不能为空" + err.Error()
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "参数" + mobile + "不能为空" + err.Error(),
+		})
 	}
-	serveJSON(w, res)
 }
 
 // 查看所有与自己聊天的用户
@@ -222,7 +272,14 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		shopId = r.FormValue("shop_id")
 	}
-
+	if shopId == "" {
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "参数shop_id不能为空",
+		})
+		return
+	}
 	ids := make([]int64, 0)
 	// 查询在线人数
 	idsTmp, err := GetShopList(shopId, 0, 50)
@@ -239,24 +296,24 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 		}
 		logger.Logger.Debug("apiFindUserList", zap.Any("userJson", v))
 		json.Unmarshal([]byte(v), &u)
-		fmt.Printf("解析用户  : %+v", u)
+		fmt.Printf("解析用户  : %+v \r\n", u)
 		if u.DeviceId == "" {
 			continue
 		}
 		index, err := cache.Online.GetMessageAckMapping(u.DeviceId, u.RoomId) // 获取消息已读偏移
 		if err != nil {
-			fmt.Printf("获取消息已读偏移 error : %+v", err)
+			fmt.Printf("获取消息已读偏移 error : %+v  \n", err)
 			continue
 		}
 		count, err := GetMessageCount(u.RoomId, index, "+inf") // 拿到偏移去统计未读
 		if err != nil {
-			fmt.Printf("拿到偏移去统计未读 error : %+v", err)
+			fmt.Printf("拿到偏移去统计未读 error : %+v  \n", err)
 			continue
 		}
 
 		lastMessage, err := GetMessageList(u.RoomId, 0, 0) // 取回消息
 		if err != nil {
-			fmt.Printf("取回消息 error : %+v", err)
+			fmt.Printf("取回消息 error : %+v  \n", err)
 			continue
 		}
 
@@ -266,20 +323,19 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 		dst = append(dst, u)
 	}
 
-	res := resp{
-		Code:    0,
-		Success: false,
-		Msg:     "",
-	}
 	if err == nil {
-		res.Code = 1
-		res.Success = true
-		res.UserList = dst
+		serveJSON(w, resp{
+			Code:     1,
+			Success:  true,
+			UserList: dst,
+		})
 	} else {
-		res.Code = 0
-		res.Msg = "参数" + shopId + "不能为空" + err.Error()
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     err.Error(),
+		})
 	}
-	serveJSON(w, res)
 }
 
 func apiPush(w http.ResponseWriter, r *http.Request) {
@@ -299,9 +355,15 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 		userId = r.FormValue("user_id")
 		shopId = r.FormValue("shop_id")
 	}
-
+	if roomId == "" || typ == "" || msg == "" || userId == "" || shopId == "" {
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     "参数room_id type msg user_id shop_id不能为空",
+		})
+		return
+	}
 	msgId = time.Now().UnixNano() // 消息唯一id 为了方便临时demo采用该方案， 后期线上可以用雪花算法
-
 	body := fmt.Sprintf(`{"user_id":%s, "shop_id":%s, "type":"%s", "msg":"%s", "room_id":"%s", "dateline":%d, "id":"%d"}`,
 		userId, shopId, typ, msg, roomId, time.Now().Unix(), msgId)
 
@@ -325,40 +387,21 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 			err = AddMessageList(roomId, msgId, body)
 		}
 	}
-
-	res := resp{
-		Code:    0,
-		Success: false,
-		Msg:     "",
-	}
 	if err == nil {
-		res.Code = 1
-		res.Success = true
+		serveJSON(w, resp{
+			Code:    1,
+			Success: true,
+		})
 	} else {
-		res.Code = 0
-		res.Msg = "error" + err.Error()
-	}
-	serveJSON(w, res)
-}
-
-func main() {
-	logger.Init()
-
-	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
-
-	ipAddr := ":8888"
-
-	t := time.Now().Local().Format("2006-01-02 15:04:05 -0700")
-
-	logger.Logger.Info("http demo 服务已经开启", zap.String("demo_http_server_ip_port", ipAddr+"  "+t))
-
-	err := http.ListenAndServe(ipAddr, &router{})
-	if err != nil {
-		fmt.Println(err)
+		serveJSON(w, resp{
+			Code:    0,
+			Success: false,
+			Msg:     err.Error(),
+		})
 	}
 }
 
-//下方 redis 操作区域
+// redis 操作区
 
 // AddShopList 将用户添加到商户列表
 // zadd  shop_id  time() user_id
@@ -428,4 +471,21 @@ func GetMessageList(roomId string, start, stop int64) ([]string, error) {
 	}
 
 	return dst, nil
+}
+
+func main() {
+	logger.Init()
+
+	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
+
+	ipAddr := ":8888"
+
+	t := time.Now().Local().Format("2006-01-02 15:04:05 -0700")
+
+	logger.Logger.Info("http demo 服务已经开启", zap.String("demo_http_server_ip_port", ipAddr+"  "+t))
+
+	err := http.ListenAndServe(ipAddr, &router{})
+	if err != nil {
+		fmt.Println(err)
+	}
 }

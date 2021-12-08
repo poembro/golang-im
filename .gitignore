@@ -9,3 +9,4 @@ cmd/connect/connect
 cmd/logic/logic
 demo/demo
 demo/nohup.out
+demo/dist/upload

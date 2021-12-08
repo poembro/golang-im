@@ -12,7 +12,7 @@ require (
 	github.com/json-iterator/go v1.1.7
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.17.0 // indirect
-	github.com/tidwall/gjson v1.12.1
+	github.com/sony/sonyflake v1.0.0
 	go.etcd.io/etcd v0.0.0-20200402134248-51bdeb39e698
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da

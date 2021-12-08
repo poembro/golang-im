@@ -188,6 +188,9 @@
     const verOffset = 6
     const opOffset = 8
     const seqOffset = 12 
+
+    const MAX_CONNECT_TIMES = 10 //最大重连次数
+    const DELAY = 7500          //每隔15秒连一次 
     _.websocket = {
         msgSeq : 0,
         ws : null,
@@ -199,8 +202,6 @@
             self.textDecoder = new TextDecoder()
             self.textEncoder = new TextEncoder()
 
-            var MAX_CONNECT_TIMES = 10 //最大重连次数
-            var DELAY = 7500          //每隔15秒连一次 
             self.createConnect(MAX_CONNECT_TIMES, DELAY)
         }, 
         createConnect : function (max, delay) {
@@ -215,10 +216,6 @@
                 self.auth(ws) 
                 var ishide = $("#doconfig")
                 if (ishide) ishide.click();
-
-                if (max === 10) {
-                    self.sync(ws)
-                }
             }
 
             ws.onmessage = function(evt) {
@@ -244,7 +241,10 @@
                         break
 
                     case 15: //订阅房间的结果
-                        //console.log("receive: sub") 
+                        //console.log("receive: sub")  
+                        if (max === MAX_CONNECT_TIMES) {
+                            self.sync(ws)
+                        }
                         break  
                     case 17: // 取消订阅的结果 
                         break
@@ -374,8 +374,7 @@
             }
         },
         mergeArrayBuffer : function (ab1, ab2) {
-            var u81 = new Uint8Array(ab1),
-                u82 = new Uint8Array(ab2),
+            var u81 = new Uint8Array(ab1), u82 = new Uint8Array(ab2),
                 res = new Uint8Array(ab1.byteLength + ab2.byteLength)
             res.set(u81, 0)
             res.set(u82, ab1.byteLength)
@@ -437,24 +436,26 @@
                 messageList.children().first().remove() 
             }
             _.scrollTop()
-        },  
-        message : function (id, face, nickname, time, msg, msgtype) { //别人发消息给我的模板； 
+        },
+        //别人发消息给我的模板； 
+        message : function (id, face, nickname, time, msg, msgtype) { 
             var str = '<div class="send" id="' +id+ '">'
             str += '    <div class="time">'+time+'</div>'
             str += '    <div class="msg">'
               str += '       <img src="' + face + '" alt="头像" />' //'+face+'
-            str += '       <span style=" position: absolute;left: 1.1rem;">' + nickname + '</span>'
+            str += '         <span style=" position: absolute;left: 1.1rem;">' + nickname + '</span>'
             
             if (msgtype == 'image'){
                 str += '        <pre>' + '<img src="'+ msg +'" class="msg-img"/>' + '</pre>'
             } else {
-                str += '<pre>'+msg+'</pre>'
+                str += '        <pre>'+msg+'</pre>'
             } 
             str += '    </div>'
             str += '</div>' 
             return str;
         },
-        message_me : function (id, face, nickname, time, msg, msgtype){ //我自己发消息模板； 
+        //我自己发消息模板； 
+        message_me : function (id, face, nickname, time, msg, msgtype){ 
             var str = '<div class="show" id="' +id+ '">'
             str += '    <div class="time">'+time+'</div>'
             str += '    <div class="msg">'
@@ -463,7 +464,7 @@
             if (msgtype == 'image'){
                 str += '        <pre>' + '<img src="'+ msg +'" class="msg-img" onclick="javascript:window.location.href=\'' + msg + '\'"  />' + '</pre>'
             } else {
-                str += '<pre>'+msg+' </pre>'
+                str += '        <pre>'+msg+' </pre>'
             } 
             str += '    </div>'
             str += '</div>' 
