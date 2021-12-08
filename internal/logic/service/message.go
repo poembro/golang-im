@@ -16,9 +16,9 @@ import (
     "golang-im/pkg/logger"
     "golang-im/pkg/pb"
 
+    "golang-im/config"
     //"golang-im/pkg/rpc"
     "golang-im/pkg/gerrors"
-    "golang-im/config"
 )
 
 type messageService struct{}
@@ -74,6 +74,6 @@ func (*messageService) Sync(ctx context.Context, userId, seq int64) (*pb.SyncRes
 
 // MessageACK 消息确认机制
 func (s *messageService) MessageACK(ctx context.Context, deviceId, roomId string, userId, deviceAck, receiveTime int64 ) error {
-    cache.Online.AddMessageACKMapping(userId, roomId, deviceAck) 
+    cache.Online.AddMessageACKMapping(deviceId, roomId, deviceAck)
     return nil
 }

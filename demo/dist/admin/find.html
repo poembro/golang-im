@@ -254,7 +254,7 @@ $(document).ready(function(){
 	// 可以先请求一个接口拿到 如下所有参数，再构建完整的连接地址
 
 	var url = "http://localhost:8888/im.html?room_id=" + timest()  // 房间号需要唯一,否则房间串消息 
-	url += "&device_id=md5(platform:user_id)" + user_id  // 有一定规则的md5值 
+	url += "&device_id=md5_platform_user_id" + user_id  // 有一定规则的md5值 
 	url += "&user_id=" + user_id
 	url += "&nickname=" + user_id
 	url += "&face=http://img.touxiangwu.com/2020/3/uq6Bja.jpg"

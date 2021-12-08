@@ -122,7 +122,7 @@
             var midLi = $("#" + m.device_id)
             if (midLi) {  midLi.remove() }
             var url = "/admin/im.html?room_id=" + m.room_id
-            url += "&device_id=7dc66b744a569d0fweb" + m.shop_id
+            url += "&device_id=md5_platform_user_id" + m.shop_id
             url += "&user_id=" + m.shop_id
             url += "&nickname=" + m.shop_name
             url += "&shop_id=" + m.user_id

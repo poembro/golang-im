@@ -225,7 +225,7 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 
 	ids := make([]int64, 0)
 	// 查询在线人数
-	idsTmp, err := GetShopList("userList:"+shopId, 0, 50)
+	idsTmp, err := GetShopList(shopId, 0, 50)
 	for _, v := range idsTmp {
 		id, _ := strconv.ParseInt(v, 10, 64)
 		ids = append(ids, id)
@@ -239,11 +239,11 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 		}
 		logger.Logger.Debug("apiFindUserList", zap.Any("userJson", v))
 		json.Unmarshal([]byte(v), &u)
-		//fmt.Printf("解析用户  : %+v", u)
+		fmt.Printf("解析用户  : %+v", u)
 		if u.DeviceId == "" {
 			continue
 		}
-		index, err := cache.Online.GeMessageAckMapping(int64(u.UserId), u.RoomId) // 获取消息已读偏移
+		index, err := cache.Online.GetMessageAckMapping(u.DeviceId, u.RoomId) // 获取消息已读偏移
 		if err != nil {
 			fmt.Printf("获取消息已读偏移 error : %+v", err)
 			continue
@@ -315,13 +315,14 @@ func apiPush(w http.ResponseWriter, r *http.Request) {
 	}
 	bytes, err := proto.Marshal(buf)
 	if err == nil {
+		// 写入商户列表
+		err = AddShopList(shopId, userId)
+
 		// 推送 或者 写入kafka 队列等
 		err = cache.Queue.Publish(config.Global.PushAllTopic, bytes)
 		if err == nil {
 			// 消息持久化
 			err = AddMessageList(roomId, msgId, body)
-			// 写入商户列表
-			err = AddShopList(shopId, userId)
 		}
 	}
 
