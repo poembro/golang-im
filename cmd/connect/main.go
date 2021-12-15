@@ -81,7 +81,7 @@ func main() {
 		logger.Logger.Error("register service err ", zap.Error(err))
 	}
 
-	logger.Logger.Info("rpc服务已经开启", zap.String("connect_rpc_server_ip_port", config.InternalIP()+config.Connect.RPCListenAddr))
+	logger.Logger.Info("rpc服务已经开启", zap.String("EtcdAddr", config.Global.EtcdAddr), zap.String("connect_rpc_server_ip_port", config.InternalIP()+config.Connect.RPCListenAddr))
 	err = server.Serve(listener)
 	if err != nil {
 		logger.Logger.Error("Serve", zap.Error(err))

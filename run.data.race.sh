@@ -1,9 +1,7 @@
 GO111MODULE="on"
 cd cmd/logic
 rm -f logic
-
-#CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
-go build -ldflags "-w -s" -v -o logic main.go
+go build -race -v -o logic main.go
 echo "打包logic成功"
 pkill logic
 echo "停止logic服务"
@@ -12,8 +10,7 @@ echo "启动logic服务"
 
 cd ../connect
 rm -f connect
-#CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
-go build -ldflags "-w -s" -v -o connect main.go
+go build -race -v -o connect main.go
 echo "打包connect成功"
 pkill connect
 echo "停止connect服务"
@@ -23,8 +20,7 @@ echo "启动connect服务"
 
 cd ../../demo
 rm -f demo
-#CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
-go build -ldflags "-w -s" -v -o demo main.go
+go build -race -v -o demo main.go
 echo "打包demo成功"
 pkill demo
 echo "停止demo服务"

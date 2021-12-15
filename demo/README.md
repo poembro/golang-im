@@ -46,7 +46,3 @@ pkg
 - 框架层面参考了 gin 和 goim 项目，但是市面上没有发现完整的开源demo 于是作为练手实践写了该项目 
 
 
-## 使用
-
-http://localhost:8888/im.html?room_id=8000&device_id=8dc66b744a569d0fd04864ea599b2371&user_id=11294&nickname=858888&shop_id=10000&shop_name=ffff&shop_face=https://gamecat.youuue.com/default.jpg&face=https://gamecat.youuue.com/default.jpg&pushurl=http://localhost:8888/open/push&platform=web&suburl=ws://localhost:7923/ws
-

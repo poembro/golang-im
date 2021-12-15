@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"golang-im/pkg/util"
-
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -20,6 +18,7 @@ import (
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
 	"golang-im/pkg/protocol"
+	"golang-im/pkg/util"
 
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/proto"
