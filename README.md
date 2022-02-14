@@ -51,6 +51,13 @@ pkg
     |___ rpc               构建grpc客户端 及 处理服务发现节点
     |___ urlwhitelist      grpc 服务白名单，如有grpc服务方法需要授权访问 防止外部人员向任意房间发消息
     |___ util              工具
+
+run.data.race.sh           竞争检测方式构建
+run.sh                     普通方式构建
+proto.sh                   编译protoc文件为pb文件
+Dockerfile                 用来构建docker镜像
+docker.run.build.sh        用来构建为可执行文件，方便拷贝到docker镜像里面去
+docker-start.sh            docker启动时脚本   
  
 ``` 
 
