@@ -8,7 +8,6 @@ import (
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 
-	//"google.golang.org/genproto/googleapis/ads/googleads/v1/services"
 	"strings"
 	"sync"
 	"time"
@@ -73,7 +72,7 @@ func (r *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts r
 	for i := range resp.Kvs {
 		k := string(resp.Kvs[i].Key)
 		v := string(resp.Kvs[i].Value)
-		fmt.Println("etcd Build()---k->" , k, " ---v->",v )
+		fmt.Println("etcd Build()---k->", k, " ---v->", v)
 		r.Set(k, v)
 	}
 	r.cc.UpdateState(resolver.State{Addresses: r.Gets()})
@@ -148,7 +147,7 @@ func GetAllService(schema, etcdaddr, servicename string) map[string]string {
 	for i := range resp.Kvs {
 		k := string(resp.Kvs[i].Key)
 		v := string(resp.Kvs[i].Value)
-		fmt.Println("etcd  GetAllService ---k->" , k, " ---v->",v )
+		fmt.Println("etcd  GetAllService ---k->", k, " ---v->", v)
 		allService[k] = servicename
 	}
 	cli.Close()

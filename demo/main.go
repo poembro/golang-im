@@ -85,7 +85,7 @@ func StaticServer(w http.ResponseWriter, req *http.Request) {
 	http.ServeFile(w, req, filePath)
 }
 
-// api 接口区
+//////////////// api 接口区 ////////////////////
 
 // api响应结构体
 type resp struct {
