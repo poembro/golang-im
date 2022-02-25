@@ -71,10 +71,7 @@ func main() {
 	}
 
 	// 初始化RpcClient
-	rpc.Init(config.Global.GrpcSchema,
-		config.Global.EtcdAddr,
-		rpc.ConnectIntSerName,
-		config.Connect.LocalAddr)
+	rpc.Init(config.Global.GrpcSchema, config.Global.EtcdAddr, rpc.ConnectIntSerName, config.Connect.LocalAddr)
 
 	logger.Logger.Info("rpc服务已经开启", zap.String("EtcdAddr", config.Global.EtcdAddr), zap.String("connect_rpc_server_ip_port", config.InternalIP()+config.Connect.RPCListenAddr))
 	err = server.Serve(listener)

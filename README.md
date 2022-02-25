@@ -7,7 +7,7 @@
 - 简洁 
 - 高性能
 - 支持心跳来维持在线
-- 使用 redis 发布订阅做推送 (目前demo为了简洁采用redis，生产环境简单开发可以更换为 kafka 等)
+- 采用 redis 发布订阅做广播推送 (目前demo代码为了阅读简洁暂采用redis，生产环境可更换为 kafka 等)
 - 采用 TLV 协议格式，保持与[goim](https://github.com/Terry-Mao/goim)一致
 - 采用框架设计参考[gim](https://github.com/alberliu/gim),代码观赏性极好....
 - 采用 etcd 作为服务发现,grpc客户端负载均衡 实现分布式高可用
