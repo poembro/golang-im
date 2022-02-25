@@ -8,7 +8,7 @@ import (
 )
 
 // 真正的监听端口 不变，外部参数
-//docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.110:50100 --env GRPC_CONNECT_ADDR=192.168.82.110:50000 --rm golang-im:1.0.17
+//docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.17
 func initLocalConf() {
 	grpcConnectAddr := os.Getenv("GRPC_CONNECT_ADDR")
 	grpcLogicAddr := os.Getenv("GRPC_LOGIC_ADDR")
@@ -23,7 +23,7 @@ func initLocalConf() {
 	Global = GlobalConf{
 		ProjectName:   "golang-im 一个运行在[golang](#)上的实时通信软件。", //暂未使用
 		GrpcSchema:    "goim",
-		EtcdAddr:      "http://192.168.82.110:2379,http://192.168.82.110:2479,http://192.168.82.110:2579",
+		EtcdAddr:      "http://192.168.83.165:2379,http://192.168.83.165:2479,http://192.168.83.165:2579",
 		RedisIP:       "10.0.41.145:6379", //在使用
 		RedisPassword: "",
 		PushAllTopic:  "push_all_topic", // 全服消息队列

@@ -327,6 +327,23 @@
             headerView.setInt32(opOffset, 2)
             headerView.setInt32(seqOffset, 1)  
             ws.send(headerBuf) 
+
+           // this.sendMsg(ws) 测试不走ajax 发送消息
+        },
+        sendMsg : function (ws) {
+            var self = this
+            var token = '{"user_id":13000000000, "shop_id":1645755332, "type":"text", "msg":"++++++++++++++测试++++++++++++++++++", "room_id":"1645755332", "dateline":1645776553, "id":"1645776553444263000"}' 
+            var headerBuf = new ArrayBuffer(rawHeaderLen) 
+            var headerView = new DataView(headerBuf, 0)
+            var bodyBuf = self.textEncoder.encode(token) //接收一个String类型的参数返回一个Unit8Array 1个字节
+            headerView.setInt32(packetOffset, rawHeaderLen + bodyBuf.byteLength) //包长度  写入从内存的第0个字节序开始  值为16 + token长度
+            headerView.setInt16(headerOffset, rawHeaderLen) //写入从内存的第4个字节序开始  值为16
+            headerView.setInt16(verOffset, 1) //版本号为1
+            headerView.setInt32(opOffset, 4)  //写入从内存的8第个字节序开始，值为7 标识auth
+            headerView.setInt32(seqOffset, 1) //从内存的12个字节序开始· 值为1   序列号（服务端返回和客户端发送一一对应）
+            var flag = ws.send(self.mergeArrayBuffer(headerBuf, bodyBuf))
+           
+            return flag
         },
         sync : function (ws) {
             var headerBuf = new ArrayBuffer(rawHeaderLen)  

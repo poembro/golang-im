@@ -225,11 +225,11 @@ func apiRegister(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	_, err := db.RedisCli.HSet("user_table", mobile, password).Result()
+	db.RedisCli.HSet("user_table", mobile, password).Result()
 	serveJSON(w, resp{
 		Code:    1,
 		Success: true,
-		Msg:     err.Error(),
+		Msg:     "success",
 	})
 }
 
@@ -244,7 +244,7 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		password = r.FormValue("password")
 	}
 
-	oldPwd, err := db.RedisCli.HGet("user_table", mobile).Result()
+	oldPwd, _ := db.RedisCli.HGet("user_table", mobile).Result()
 
 	if oldPwd == password {
 		serveJSON(w, resp{
@@ -255,7 +255,7 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		serveJSON(w, resp{
 			Code:    0,
 			Success: false,
-			Msg:     "参数" + mobile + "不能为空" + err.Error(),
+			Msg:     "参数" + mobile + "不能为空",
 		})
 	}
 }

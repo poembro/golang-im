@@ -127,7 +127,7 @@ func (c *Conn) HandleMessage(bytes []byte) {
 	input = new(protocol.Proto)
 	input.Decode(bytes)
 
-	logger.Logger.Debug("HandleMessage", zap.Any("input", string(input.Body)))
+	logger.Logger.Debug("HandleMessage", zap.String("desc", fmt.Sprintf("op:%d msg:%s", input.Op, "收到")), zap.Any("input", string(input.Body)))
 
 	// 对未登录的用户进行拦截
 	if input.Op != protocol.OpAuth && c.UserId == 0 {
@@ -227,12 +227,13 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 		return
 	}
 	buf := &pb.PushMsg{
-		Type:      pb.PushMsg_ROOM,
+		Type:      pb.PushMsg_ROOM, //  测试时改 pb.PushMsg_PUSH 并给 DeviceId 属性赋值
 		Operation: protocol.OpSendMsgReply,
 		Speed:     2,
 		Server:    config.Connect.LocalAddr,
 		RoomId:    c.RoomId,
 		Msg:       p.Body,
+		DeviceId:  []string{"md5_platform_user_id1645755332", "md5_platform_user_id13000000000"},
 	}
 	// 加上grpc头防止api授权拦截
 	ctx := metadata.NewOutgoingContext(context.TODO(), metadata.Pairs(
@@ -245,9 +246,9 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 	if err != nil {
 		return
 	}
-	p.Op = protocol.OpSendMsgReply
-	p.Body = []byte("ok")
-	c.Send(p)
+	//p.Op = protocol.OpSendMsgReply
+	//p.Body = []byte("ok")
+	//c.Send(p)
 }
 
 // Heartbeat 心跳

@@ -51,11 +51,6 @@ func SubscribedRoom(conn *Conn, roomId string) {
 
 // PushRoom 从全局Map中 找到对应roomid对应的Room结构体对象, 该对象下有 所有用户的连接句柄
 func PushRoom(roomId string, p *protocol.Proto) {
-	//RoomsManager.Range(func(key, value interface{}) bool {
-	//    fmt.Println("当前有房间 %+v ", value.(*Room))
-	//    return true
-	//})
-	//fmt.Println("推送到房间  1111   ", roomId)
 	value, ok := RoomsManager.Load(roomId)
 	if !ok || value == nil {
 		return

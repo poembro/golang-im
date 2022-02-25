@@ -20,8 +20,6 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-
-	"golang-im/pkg/grpclib/etcdv3"
 )
 
 func main() {
@@ -29,9 +27,6 @@ func main() {
 	// db.InitEtcd(config.Global.EtcdAddr)
 	// db.InitMysql(config.Logic.MySQL)
 	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
-
-	// 初始化RpcClient
-	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr, rpc.ConnectIntSerName)
 
 	keepParams := grpc.KeepaliveParams(keepalive.ServerParameters{
 		MaxConnectionIdle:     time.Duration(time.Second * 60), //60s 连接最大闲置时间
@@ -60,10 +55,11 @@ func main() {
 		panic(err)
 	}
 
-	err = etcdv3.Register(config.Global.GrpcSchema, config.Global.EtcdAddr, config.Logic.LocalAddr, rpc.LogicIntSerName, 5)
-	if err != nil {
-		logger.Logger.Error("register service err ", zap.Error(err))
-	}
+	// 初始化RpcClient
+	rpc.Init(config.Global.GrpcSchema,
+		config.Global.EtcdAddr,
+		rpc.LogicIntSerName,
+		config.Logic.LocalAddr)
 
 	logger.Logger.Info("rpc服务已经开启", zap.String("EtcdAddr", config.Global.EtcdAddr), zap.String("logic_rpc_server_ip_port", config.InternalIP()+config.Logic.RPCListenAddr))
 	err = server.Serve(listen)

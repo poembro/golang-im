@@ -19,17 +19,12 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
-
-	"golang-im/pkg/grpclib/etcdv3"
 )
 
 func main() {
 	logger.Init()
 
 	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
-
-	// 初始化Rpc Client
-	rpc.NewClient(config.Global.GrpcSchema, config.Global.EtcdAddr, rpc.LogicIntSerName)
 
 	// 启动TCP长链接服务器
 	go func() {
@@ -75,11 +70,11 @@ func main() {
 		panic(err)
 	}
 
-	// 服务注册
-	err = etcdv3.Register(config.Global.GrpcSchema, config.Global.EtcdAddr, config.Connect.LocalAddr, rpc.ConnectIntSerName, 5)
-	if err != nil {
-		logger.Logger.Error("register service err ", zap.Error(err))
-	}
+	// 初始化RpcClient
+	rpc.Init(config.Global.GrpcSchema,
+		config.Global.EtcdAddr,
+		rpc.ConnectIntSerName,
+		config.Connect.LocalAddr)
 
 	logger.Logger.Info("rpc服务已经开启", zap.String("EtcdAddr", config.Global.EtcdAddr), zap.String("connect_rpc_server_ip_port", config.InternalIP()+config.Connect.RPCListenAddr))
 	err = server.Serve(listener)

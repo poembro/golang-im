@@ -18,14 +18,14 @@ import (
 type Discovery struct {
 	cli                *clientv3.Client
 	cc                 resolver.ClientConn
-	serviceName        string
+	srvName            string
 	schema             string
 	watchStartRevision int64
 	SrvList            sync.Map //服务列表
 }
 
 // NewDiscovery  新建服务发现
-func NewDiscovery(schema, etcdAddr, serviceName string) resolver.Builder {
+func NewDiscovery(schema, etcdAddr, srvName string) resolver.Builder {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   strings.Split(etcdAddr, ","),
 		DialTimeout: 5 * time.Second,
@@ -35,9 +35,9 @@ func NewDiscovery(schema, etcdAddr, serviceName string) resolver.Builder {
 	}
 
 	return &Discovery{
-		cli:         cli,
-		schema:      schema,
-		serviceName: serviceName,
+		cli:     cli,
+		schema:  schema,
+		srvName: srvName,
 	}
 }
 
@@ -53,26 +53,22 @@ func (r *Discovery) Close() {
 }
 
 func (r *Discovery) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
-	if r.cli == nil {
-		return nil, fmt.Errorf("etcd clientv3 client failed, etcd:%s", target)
-	}
 	r.cc = cc
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	//     "%s:///%s/"
-	prefix := GetPrefix(r.schema, r.serviceName)
+	prefix := GetPrefix(r.schema, r.srvName)
 
 	// get key first
-	resp, err := r.cli.Get(ctx, prefix, clientv3.WithPrefix())
+	resp, err := r.cli.Get(context.TODO(), prefix, clientv3.WithPrefix())
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Println("2022-02-25 09:44:38.690	DEBUG	etcdv3/descovery.go:64 Build ", err.Error())
 		return nil, err
 	}
 
 	for i := range resp.Kvs {
 		k := string(resp.Kvs[i].Key)
 		v := string(resp.Kvs[i].Value)
-		fmt.Println("etcd Build()---k->", k, " ---v->", v)
+		fmt.Printf("2022-02-25 09:44:38.690	DEBUG	etcdv3/descovery.go:71	Build	{\"desc\": \"已存在节点 k:%s v:%s\"} \r\n", k, v)
 		r.Set(k, v)
 	}
 	r.cc.UpdateState(resolver.State{Addresses: r.Gets()})
@@ -102,7 +98,7 @@ func (r *Discovery) watch(prefix string) {
 
 // Set 设置服务地址
 func (r *Discovery) Set(key, val string) {
-	fmt.Println("etcd Set() SrvList set addr : ", val)
+	fmt.Printf("2022-02-25 09:44:38.690	DEBUG	etcdv3/descovery.go:101	Set	{\"desc\": \"有新节点加入 %s\"} \r\n", val)
 	r.SrvList.Store(key, val)
 }
 
@@ -118,38 +114,52 @@ func (r *Discovery) Gets() []resolver.Address {
 		addrs = append(addrs, resolver.Address{Addr: v.(string)})
 		return true
 	})
-	fmt.Printf("etcd --Gets()--> %+v \r\n", addrs)
+	//fmt.Printf("etcd --Gets()---当前-> %+v \r\n", addrs)
 	return addrs
 }
 
-func GetAllService(schema, etcdaddr, servicename string) map[string]string {
-	allService := make(map[string]string)
+////////////////////////////Check检查节点离线逻辑////////////////////////////
 
+type Check struct {
+	cli     *clientv3.Client
+	srvName string
+	schema  string
+}
+
+// NewNodeCheck  检查节点
+func NewHealthCheck(schema, etcdAddr, srvName string) *Check {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   strings.Split(etcdaddr, ","),
+		Endpoints:   strings.Split(etcdAddr, ","),
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {
-		fmt.Println("etcd err", err.Error())
-		return allService
+		log.Fatal(err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	//     "%s:///%s"
-	prefix := GetPrefix4Unique(schema, servicename)
+	return &Check{
+		cli:     cli,
+		schema:  schema,
+		srvName: srvName,
+	}
+}
 
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+func (c *Check) GetEtcdConns() map[string]string {
+	conns := make(map[string]string)
+
+	// "%s:///%s"
+	prefix := GetPrefix4Unique(c.schema, c.srvName)
+
+	resp, err := c.cli.Get(context.TODO(), prefix, clientv3.WithPrefix())
 	//  "%s:///%s/ip:port"   -> %s:ip:port
 	if err != nil {
-		fmt.Println("etcd err", err.Error())
+		fmt.Println("2022-02-25 09:44:38.690	DEBUG	etcdv3/descovery.go:155	GetEtcdConns", err.Error())
+		return conns
 	}
 
 	for i := range resp.Kvs {
 		k := string(resp.Kvs[i].Key)
 		v := string(resp.Kvs[i].Value)
-		fmt.Println("etcd  GetAllService ---k->", k, " ---v->", v)
-		allService[k] = servicename
+		conns[k] = v
 	}
-	cli.Close()
-	return allService
+	return conns
 }

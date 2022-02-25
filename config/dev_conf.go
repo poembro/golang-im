@@ -14,7 +14,7 @@ func initDevConf() {
 	Global = GlobalConf{
 		ProjectName:   "golang-im 一个运行在[golang](#)上的实时通信软件。", //暂未使用
 		GrpcSchema:    "goim",
-		EtcdAddr:      "http://192.168.82.110:2379,http://192.168.82.110:2479,http://192.168.82.110:2579",
+		EtcdAddr:      "http://192.168.83.165:2379,http://192.168.83.165:2479,http://192.168.83.165:2579",
 		RedisIP:       "10.0.41.145:6379", //在使用
 		RedisPassword: "",
 		PushAllTopic:  "push_all_topic", // 全服消息队列

@@ -136,7 +136,7 @@ networks:
 4.运行测试网页  
  4.1 浏览器打开 http://localhost:8888/admin/login.html
  4.2 注册 输入手机号 密码 --> 登录  输入手机号 密码
- 4.3 点击 底部导航 ”发现“页面  --> 点击浮动头像  即:表示 打开用户端咨询窗口、
+ 4.3 点击 底部导航 ”发现“页面  --> 点击浮动头像  即:表示 打开用户端咨询窗口并发送1条消息、
  4.4 点击 底部导航 ”消息“ 页面  --> 可以看到 用户列表  即:表示 当前所有找我咨询的用户  --> 点击对应用户头像 即:回复咨询页面
 
 
@@ -147,14 +147,14 @@ networks:
 
 [root@iZ~]#docker image build -t golang-im:1.0.18 .
 
-第一台机器192.168.82.110,启动第一个实例
-[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.110:50100 --env GRPC_CONNECT_ADDR=192.168.82.110:50000 --rm golang-im:1.0.18
+第一台机器192.168.83.165,启动第一个实例
+[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
 
-第一台机器192.168.82.110,启动第二个实例
-[root@iZ~]#docker run -p 50002:50000 -p 50102:50100 -p 7924:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.110:50102 --env GRPC_CONNECT_ADDR=192.168.82.110:50002 --rm golang-im:1.0.18
+第一台机器192.168.83.165,启动第二个实例
+[root@iZ~]#docker run -p 50002:50000 -p 50102:50100 -p 7924:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50102 --env GRPC_CONNECT_ADDR=192.168.83.165:50002 --rm golang-im:1.0.18
 
-第一台机器192.168.82.110,启动第三个实例
-[root@iZ~]#docker run -p 50003:50000 -p 50103:50100 -p 7925:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.110:50103 --env GRPC_CONNECT_ADDR=192.168.82.110:50003 --rm golang-im:1.0.18
+第一台机器192.168.83.165,启动第三个实例
+[root@iZ~]#docker run -p 50003:50000 -p 50103:50100 -p 7925:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50103 --env GRPC_CONNECT_ADDR=192.168.83.165:50003 --rm golang-im:1.0.18
 
 第二台机器192.168.82.220,启动第四个实例 (局域网其他机器 互通)
 [root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.220:50100 --env GRPC_CONNECT_ADDR=192.168.82.220:50000 --rm golang-im:1.0.18
