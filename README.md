@@ -148,7 +148,7 @@ networks:
 [root@iZ~]#docker image build -t golang-im:1.0.18 .
 
 第一台机器192.168.83.165,启动第一个实例
-[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
+[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
 
 第一台机器192.168.83.165,启动第二个实例
 [root@iZ~]#docker run -p 50002:50000 -p 50102:50100 -p 7924:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50102 --env GRPC_CONNECT_ADDR=192.168.83.165:50002 --rm golang-im:1.0.18

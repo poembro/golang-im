@@ -21,6 +21,7 @@ RUN chmod +rwx /webser/go_wepapp/golang-im/cmd/logic/logic
 RUN chmod +rwx /webser/go_wepapp/golang-im/cmd/connect/connect
 RUN chmod +x /webser/go_wepapp/golang-im/docker-start.sh
 
+EXPOSE 8090
 EXPOSE 7923
 EXPOSE 50000
 EXPOSE 50100

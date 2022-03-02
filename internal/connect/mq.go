@@ -17,11 +17,11 @@ import (
 func StartSubscribe() {
 	channel := db.RedisCli.Subscribe(config.Global.PushAllTopic).Channel()
 	for i := 0; i < config.Connect.SubscribeNum; i++ {
-		go handleRedisMsg(channel)
+		go msgHandle(channel)
 	}
 }
 
-func handleRedisMsg(channel <-chan *redis.Message) {
+func msgHandle(channel <-chan *redis.Message) {
 	for msg := range channel {
 		if msg.Channel != config.Global.PushAllTopic {
 			continue
@@ -32,7 +32,7 @@ func handleRedisMsg(channel <-chan *redis.Message) {
 			logger.Logger.Debug("StartSubscribe", zap.Error(err))
 			continue
 		}
-		logger.Logger.Debug("RedisCli_Subscribe_msg", zap.Any("body", pushMsg))
+		//logger.Logger.Debug("RedisCli_Subscribe_msg", zap.Any("body", pushMsg))
 		Dispatch(pushMsg)
 	}
 }
@@ -52,20 +52,19 @@ func Dispatch(m *pb.PushMsg) {
 	}
 }
 
-func _pushKeys(op int32, serverID string, DeviceId []string, body []byte) (err error) {
+func _pushKeys(op int32, serverID string, DeviceId []string, body []byte) {
 	// TODO 如果当前节点 与 serverID 不相等直接return
-
 	for _, key := range DeviceId {
 		// 获取设备对应的TCP连接
 		conn := GetConn(key)
 		if conn == nil {
 			logger.Logger.Warn("GetConn warn", zap.String("device_id", key))
-			return nil
+			return
 		}
 
 		if conn.DeviceId != key {
 			logger.Logger.Warn("GetConn warn", zap.String("device_id", key))
-			return nil
+			return
 		}
 
 		p := new(protocol.Proto)

@@ -133,7 +133,7 @@
                 data["msg"]  = msgtype 
             }
 
-            if (!data["msg"] || $.trim(data["msg"]) == "" || (data["msg"].length < 1 ) ) { 
+            if (!data["msg"] || $.trim(data["msg"]) == "" || (data["msg"].length < 1 ) || (data["msg"].length > 65536 ) ) { 
                 _.alert('请输入内容再发送')
                 return false 
             }
@@ -361,8 +361,8 @@
             //协议格式对应 /api/comet/grpc/protocol
             //var token = '{"user_id":123, "room_id":"live://1000", "platform":"web", "accepts":[1000,1001,1002]}'
             var token =  JSON.stringify(_.config.options)
-            //console.log(token)
-            //console.log(_.config.options)
+            console.log(token)
+            console.log(_.config.options)
             var headerBuf = new ArrayBuffer(rawHeaderLen) 
             var headerView = new DataView(headerBuf, 0)
             var bodyBuf = self.textEncoder.encode(token) //接收一个String类型的参数返回一个Unit8Array 1个字节

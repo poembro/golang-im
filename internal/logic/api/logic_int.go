@@ -3,20 +3,17 @@ package api
 import (
 	"context"
 	"golang-im/internal/logic/service"
-	"golang-im/pkg/grpclib"
 
 	//"golang-im/pkg/gerrors"
-	"golang-im/pkg/logger"
-	"golang-im/pkg/pb"
 
-	"go.uber.org/zap"
+	"golang-im/pkg/pb"
 )
 
 type LogicIntServer struct{}
 
 // ConnSignIn 设备登录
 func (*LogicIntServer) ConnSignIn(ctx context.Context, req *pb.ConnSignInReq) (*pb.ConnSignInResp, error) {
-	logger.Sugar.Infow("ConnSignIn", "SignIn", "设备登录", "desc_requeset_id", grpclib.GetCtxRequestId(ctx))
+	//logger.Sugar.Infow("ConnSignIn", "SignIn", "设备登录", "desc_requeset_id", grpclib.GetCtxRequestId(ctx))
 	deviceId, userId, err := service.AuthService.SignIn(ctx, req.Body, req.ConnAddr, req.ClientAddr)
 	return &pb.ConnSignInResp{UserId: userId, DeviceId: deviceId}, err
 }
@@ -24,19 +21,7 @@ func (*LogicIntServer) ConnSignIn(ctx context.Context, req *pb.ConnSignInReq) (*
 // SendMessage 发送消息
 func (*LogicIntServer) SendMessage(ctx context.Context, req *pb.PushMsgReq) (*pb.PushMsgReply, error) {
 	var err error
-	/*buf := &pb.PushMsg{
-	      Type :pb.PushMsg_ROOM,
-	      Operation:2,
-	      Speed:2,
-	      Server: "127.0.0.1:5000",
-	      RoomId:"live://8000-20210817001",
-	      Msg: []byte("hello world 123s"),
-	  }
-	   &pb.PushMsgReq{
-	      Message: buf,
-	  }
-	*/
-	logger.Logger.Debug("SendMessage", zap.String("desc", "grpc服务logic业务SendMessage方法 收到消息"), zap.Any("msg", req.Message))
+	//logger.Logger.Debug("SendMessage", zap.String("desc", "grpc服务logic业务SendMessage方法 收到消息"), zap.Any("msg", req.Message))
 
 	switch req.Message.Type {
 	case pb.PushMsg_PUSH:
@@ -71,8 +56,6 @@ func (s *LogicIntServer) Heartbeat(ctx context.Context, req *pb.HeartbeatReq) (*
 
 // Offline 设备离线
 func (s *LogicIntServer) Offline(ctx context.Context, req *pb.OfflineReq) (*pb.OfflineResp, error) {
-	logger.Sugar.Infow("Offline", "Offline", "设备离线", "desc_requeset_id", grpclib.GetCtxRequestId(ctx))
-
 	service.AuthService.Offline(ctx, req.UserId, req.DeviceId, req.ClientAddr)
 	return &pb.OfflineResp{}, nil
 }

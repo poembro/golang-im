@@ -29,7 +29,7 @@ const (
 type Conn struct {
 	CoonType          int8            // 连接类型
 	TCP               *gn.Conn        // tcp连接
-	WSMutex           sync.Mutex      // WS写锁
+	FdMutex           sync.Mutex      // 写锁
 	WS                *websocket.Conn // websocket连接
 	UserId            int64           // 用户ID
 	DeviceId          string          // 设备ID
@@ -38,61 +38,16 @@ type Conn struct {
 	LastHeartbeatTime time.Time       // 最后一次读取数据的时间
 }
 
-// Write 写入数据
-func (c *Conn) Write(bytes []byte) error {
-	if c.CoonType == CoonTypeTCP {
-		return encoder.EncodeToWriter(c.TCP, bytes)
-	} else if c.CoonType == ConnTypeWS {
-		c.WSMutex.Lock()
-		defer c.WSMutex.Unlock()
-
-		err := c.WS.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
-		if err != nil {
-			return err
-		}
-
-		return c.WS.WriteMessage(websocket.BinaryMessage, bytes)
-	}
-	logger.Logger.Error("unknown conn type", zap.Any("conn", c))
-	return nil
-}
-
-// Send 下发消息
-func (c *Conn) Send(output *protocol.Proto) {
-	outputBytes, err := output.Encode()
-	if err != nil {
-		logger.Sugar.Error(err)
-		return
-	}
-
-	msg := ""
-	switch output.Op {
-	case protocol.OpAuthReply:
-		msg = "回登录"
-	case protocol.OpHeartbeatReply:
-		msg = "回心跳"
-	default:
-	}
-	logger.Logger.Debug("Send", zap.String("desc", fmt.Sprintf("op:%d msg:%s", output.Op, msg)), zap.String("body", string(output.Body)))
-
-	err = c.Write(outputBytes)
-	if err != nil {
-		logger.Sugar.Error(err)
-		c.Close()
-		return
-	}
-}
-
 // Close 关闭
 func (c *Conn) Close() error {
 	// 取消订阅，需要异步出去，防止重复加锁造成死锁
 	go func() {
-		logger.Logger.Debug("Close", zap.Any("DeviceId", c.DeviceId))
+		logger.Logger.Debug("Close", zap.String("DeviceId", c.DeviceId))
 		SubscribedRoom(c, "")
 	}()
 
+	// 取消设备和连接的对应关系
 	if c.DeviceId != "" {
-		// 取消设备和连接的对应关系
 		DeleteConn(c.DeviceId)
 
 		// 通知Logic服务谁已经下线
@@ -118,6 +73,62 @@ func (c *Conn) GetAddr() string {
 		return c.WS.RemoteAddr().String()
 	}
 	return ""
+}
+
+// Write 写入数据
+func (c *Conn) Write(bytes []byte) error {
+	c.FdMutex.Lock()
+	defer c.FdMutex.Unlock()
+
+	if c.CoonType == CoonTypeTCP {
+		return encoder.EncodeToWriter(c.TCP, bytes)
+	} else if c.CoonType == ConnTypeWS {
+		err := c.WS.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
+		if err != nil {
+			return err
+		}
+		return c.WS.WriteMessage(websocket.BinaryMessage, bytes)
+	}
+	logger.Logger.Error("unknown conn type", zap.Any("conn", c))
+	return nil
+}
+
+// Send 下发消息
+func (c *Conn) Send(output *protocol.Proto) {
+	outputBytes, err := output.Encode()
+	if err != nil {
+		logger.Sugar.Error(err)
+		return
+	}
+
+	msg := ""
+	switch output.Op {
+	case protocol.OpAuthReply:
+		msg = "回登录"
+	case protocol.OpHeartbeatReply:
+		msg = "回心跳"
+	case protocol.OpMessageAckReply:
+		msg = "回收到偏移上报"
+	case protocol.OpSyncReply:
+		msg = "回同步历史消息"
+	case protocol.OpSendMsgReply:
+		msg = "回收到客户端发来的聊天消息"
+	case protocol.OpSubReply:
+		msg = "回收到订阅房间"
+	case protocol.OpUnsubReply:
+		msg = "回收到取消订阅房间"
+	case protocol.OpChangeRoomReply:
+		msg = "回修改房间"
+	default:
+	}
+	logger.Logger.Debug("Send", zap.String("desc", fmt.Sprintf("op:%d msg:%s", output.Op, msg)), zap.String("body", string(output.Body)))
+
+	err = c.Write(outputBytes)
+	if err != nil {
+		logger.Sugar.Error(err)
+		c.Close()
+		return
+	}
 }
 
 func (c *Conn) HandleMessage(bytes []byte) {
@@ -204,7 +215,7 @@ func (c *Conn) SignIn(p *protocol.Proto) {
 			ClientAddr: c.GetAddr(),
 		})
 	if err != nil {
-		logger.Logger.Debug("SignIn", zap.Any("msg", err))
+		logger.Logger.Debug("SignIn", zap.Error(err))
 		return
 	}
 	p.Op = protocol.OpAuthReply
@@ -218,8 +229,6 @@ func (c *Conn) SignIn(p *protocol.Proto) {
 
 // OpSendMsg 接收客户端发来的消息
 func (c *Conn) OpSendMsg(p *protocol.Proto) {
-	logger.Logger.Debug("OpSendMsg", zap.Any("msg", p))
-
 	if c.RoomId == "" {
 		p.Op = protocol.OpSendMsgReply
 		p.Body = []byte("Not subscribing to a room")
@@ -246,9 +255,6 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 	if err != nil {
 		return
 	}
-	//p.Op = protocol.OpSendMsgReply
-	//p.Body = []byte("ok")
-	//c.Send(p)
 }
 
 // Heartbeat 心跳
@@ -261,7 +267,7 @@ func (c *Conn) Heartbeat(p *protocol.Proto) {
 			ConnAddr: config.Connect.LocalAddr,
 		})
 	if err != nil {
-		logger.Logger.Debug("Heartbeat", zap.Any("err", err))
+		logger.Logger.Debug("Heartbeat", zap.Error(err))
 		return
 	}
 

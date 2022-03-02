@@ -28,7 +28,7 @@ func main() {
 
 	// 启动TCP长链接服务器
 	go func() {
-		//connect.StartTCPServer()
+		connect.StartTCPServer()
 	}()
 
 	// 启动WebSocket长链接服务器

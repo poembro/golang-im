@@ -2,11 +2,10 @@ module golang-im
 
 go 1.13
 
-replace golang-im/pkg/gn v1.0.0 => ./pkg/gn
-
 require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/websocket v0.0.0-20170926233335-4201258b820c
 	github.com/json-iterator/go v1.1.7
@@ -22,4 +21,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
 
+replace golang-im/pkg/gn v1.0.0 => ./pkg/gn
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1 // indirect

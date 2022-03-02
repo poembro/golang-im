@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"golang-im/internal/logic/cache"
 	"golang-im/internal/logic/model"
 	"golang-im/pkg/logger"
@@ -26,7 +27,7 @@ func (*authService) SignIn(ctx context.Context, body []byte, connAddr string, cl
 	json.Unmarshal(body, &user)
 
 	userId = int64(user.UserId)
-	deviceId = user.DeviceId
+	deviceId = fmt.Sprintf("%s_%d", user.Platform, userId)
 	// 标记用户在设备上登录
 	err = cache.Online.AddMapping(userId, deviceId, connAddr, string(body))
 	logger.Sugar.Infow("SignIn", "user", user)

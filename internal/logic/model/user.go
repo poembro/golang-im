@@ -8,17 +8,20 @@ import (
 type Int64 int64
 
 type User struct {
-	UserId Int64 `json:"user_id"`
-	RoomId   string `json:"room_id"`
+	UserId   Int64  `json:"user_id"`
 	DeviceId string `json:"device_id"`
 	Nickname string `json:"nickname"`
 	Face     string `json:"face"`
-	ShopName string `json:"shop_name"`
+
+	RoomId string `json:"room_id"`
+
 	ShopId   string `json:"shop_id"`
+	ShopName string `json:"shop_name"`
 	ShopFace string `json:"shop_face"`
-	Platform string `json:"platform"`
-	Suburl   string `json:"suburl"`
-	Pushurl  string `json:"pushurl"`
+
+	Platform    string   `json:"platform"`
+	Suburl      string   `json:"suburl"`
+	Pushurl     string   `json:"pushurl"`
 	Unread      Int64    `json:"unread"`       // 未读
 	LastMessage []string `json:"last_message"` //最后一条消息
 }
