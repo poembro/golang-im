@@ -50,7 +50,6 @@ func (d *headerLenDecoder) Decode(c *Conn) error {
 
 		body, err := buffer.Read(0, bodyLen)
 		if err == ErrNotEnough {
-
 			return nil
 		}
 

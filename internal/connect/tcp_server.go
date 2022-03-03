@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var encoder = gn.NewHeaderLenEncoder(2, 1024)
+var encoder = gn.NewHeaderLenEncoder(4, 1024)
 
 var server *gn.Server
 
