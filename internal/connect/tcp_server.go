@@ -14,13 +14,17 @@ var encoder = gn.NewHeaderLenEncoder(2, 1024)
 
 var server *gn.Server
 
+// StartTCPServer 启动gn TCP框架 监听端口
 func StartTCPServer() {
 	gn.SetLogger(logger.Sugar)
 
 	var err error
 	server, err = gn.NewServer(config.Connect.TCPListenAddr, &handler{},
 		gn.NewHeaderLenDecoder(4),
-		gn.WithReadBufferLen(1024), //限制了客户端发送数据的最大长度
+		//限制了客户端发送数据的最大长度, 好处是采用sync.pool 内存复用
+		//比如申请1024个字节长度 第一次使用了169字节，第二次使用16个字节,则第二次的16字节覆盖第一次169字节的前面 0-16字节 我们利用偏移只取前16字节即可
+		//参考 https://mp.weixin.qq.com/s/6Nx7IGFU_FbM5AOdUzmvcw
+		gn.WithReadBufferLen(65535),
 		gn.WithTimeout(5*time.Minute, 11*time.Minute),
 		gn.WithAcceptGNum(10),
 		gn.WithIOGNum(100))

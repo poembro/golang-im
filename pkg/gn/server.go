@@ -144,6 +144,9 @@ type Server struct {
 	stop           chan int     // 服务器关闭信号
 }
 
+// 用来统计实例真正创建的次数
+//var numCalcsCreated int32
+
 // NewServer 创建server服务器
 func NewServer(address string, handler Handler, decoder Decoder, opts ...Option) (*Server, error) {
 	options := getOptions(opts...)
@@ -152,6 +155,9 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 	readBufferPool := &sync.Pool{
 		New: func() interface{} {
 			b := make([]byte, options.readBufferLen)
+
+			//atomic.AddInt32(&numCalcsCreated, 1)
+			//log.Info(" sync.Pool 初始化读缓存区内存池次数 :", numCalcsCreated)
 			return b
 		},
 	}

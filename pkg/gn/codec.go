@@ -2,7 +2,6 @@ package gn
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"sync"
 	"syscall"
@@ -35,10 +34,6 @@ func NewHeaderLenDecoder(headerLen int) Decoder {
 	}
 }
 
-func Int32(b []byte) int32 {
-	return int32(b[3]) | int32(b[2])<<8 | int32(b[1])<<16 | int32(b[0])<<24
-}
-
 // Decode 解码 (golang-im自定义一下)
 func (d *headerLenDecoder) Decode(c *Conn) error {
 	buffer := c.GetBuffer()
@@ -49,15 +44,13 @@ func (d *headerLenDecoder) Decode(c *Conn) error {
 		}
 		bodyLen := int(binary.BigEndian.Uint32(header))
 
-		valueLen := Int32(header)
-		fmt.Println("--bodyLen-->", bodyLen)
-		fmt.Println("--valueLen-->", valueLen)
-		fmt.Println("--buf.start-->", buffer.start, "--buf.end-->", buffer.end)
-		fmt.Println("--buf-->", len(buffer.GetBuf()), "---->", buffer.GetBuf())
+		//fmt.Println("--bodyLen-->", bodyLen)
+		//fmt.Println("--buf.start-->", buffer.start, "--buf.end-->", buffer.end)
+		//fmt.Println("--buf-->", len(buffer.GetBuf()), "---->", buffer.GetBuf())
 
-		body, err := buffer.Read(0, buffer.end-1)
+		body, err := buffer.Read(0, bodyLen)
 		if err == ErrNotEnough {
-			fmt.Println(33333)
+
 			return nil
 		}
 

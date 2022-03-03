@@ -7,8 +7,9 @@ package main
 
 import (
 	"bufio"
-	"io"
+	"sync"
 
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -33,7 +34,7 @@ const (
 
 const (
 	rawHeaderLen = uint16(16)
-	heart        = 15 * time.Second
+	heart        = 30 * time.Second
 )
 
 type Int64 int64
@@ -58,10 +59,12 @@ var (
 	aliveCount int64
 )
 
+var FdMutex sync.Mutex
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
-	fmt.Println(os.Args)
+
 	begin, err := strconv.Atoi(os.Args[1])
 	if err != nil {
 		panic(err)
@@ -72,12 +75,13 @@ func main() {
 	}
 	go result()
 	for i := begin; i < begin+num; i++ {
+		n := int64(i)
 		go func(mid int64) {
 			for {
 				startClient(mid)
-				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+				fmt.Println("有报错重连....")
 			}
-		}(int64(i))
+		}(n)
 	}
 	// signal
 	var exit chan bool
@@ -87,7 +91,7 @@ func main() {
 func result() {
 	var (
 		lastTimes int64
-		interval  = int64(5)
+		interval  = int64(30)
 	)
 	for {
 		nowCount := atomic.LoadInt64(&countDown)
@@ -113,7 +117,7 @@ func startClient(key int64) {
 		log.Errorf("net.Dial(%s) error(%v)", os.Args[3], err)
 		return
 	}
-	seq := int32(0)
+
 	wr := bufio.NewWriter(conn)
 	rd := bufio.NewReader(conn)
 
@@ -130,7 +134,7 @@ func startClient(key int64) {
 	proto := new(protocol.Proto)
 	proto.Ver = 1
 	proto.Op = 7
-	proto.Seq = seq
+	proto.Seq = 222
 	proto.Body, _ = json.Marshal(authToken)
 	if err = tcpWriteProto(wr, proto); err != nil {
 		log.Errorf("tcpWriteProto() error(%v)", err)
@@ -140,20 +144,22 @@ func startClient(key int64) {
 		log.Errorf("tcpReadProto() error(%v)", err)
 		return
 	}
-	log.Infof("key:%d auth ok, proto: %v", key, proto)
-	seq++
+	fmt.Printf("key:%d auth ok, proto: %v \r\n", key, proto)
 
 	// writer
 	go func() {
 		for {
-			proto.Op = 2
-			if err = tcpWriteProto(wr, proto); err != nil {
+			p := new(protocol.Proto)
+			p.Ver = 1
+			p.Op = 2
+			p.Seq = 111
+			if err = tcpWriteProto(wr, p); err != nil {
 				log.Errorf("key:%d tcpWriteProto() error(%v)", key, err)
 				return
 			}
-			log.Infof("key:%d Write heartbeat", key)
+			fmt.Printf("key:%d Write heartbeat \r\n", key)
 			time.Sleep(heart)
-			seq++
+
 			select {
 			case <-quit:
 				return
@@ -161,17 +167,19 @@ func startClient(key int64) {
 			}
 		}
 	}()
+
 	// reader
 	for {
-		if err = tcpReadProto(rd, proto); err != nil {
+		pr := new(protocol.Proto)
+		if err = tcpReadProto(rd, pr); err != nil {
 			log.Errorf("key:%d tcpReadProto() error(%v)", key, err)
 			quit <- true
 			return
 		}
-		if proto.Op == opAuthReply {
-			log.Infof("key:%d auth success", key)
-		} else if proto.Op == opHeartbeatReply {
-			log.Infof("key:%d receive heartbeat", key)
+		if pr.Op == opAuthReply {
+			fmt.Printf("key:%d auth success \r\n", key)
+		} else if pr.Op == opHeartbeatReply {
+			fmt.Printf("key:%d receive heartbeat \r\n", key)
 			// 设置读取超时
 			//golang的标准网络库是最后期限方式  (平常linux 是空闲超时)
 			if err = conn.SetReadDeadline(time.Now().Add(heart + 60*time.Second)); err != nil {
@@ -180,20 +188,23 @@ func startClient(key int64) {
 				return
 			}
 		} else {
-			log.Infof("key:%d op:%d msg: %s", key, proto.Op, string(proto.Body))
+			fmt.Printf("key:%d op:%d msg: %s \r\n", key, pr.Op, string(pr.Body))
 			atomic.AddInt64(&countDown, 1)
 		}
 	}
 }
 
 func tcpWriteProto(wr *bufio.Writer, proto *protocol.Proto) (err error) {
+	FdMutex.Lock()
+	defer FdMutex.Unlock()
+
 	// write
 	p, err := proto.Encode()
 
 	wr.Write(p)
 
-	fmt.Printf("发送协议包: %#v \r\n", proto.Op)
-	//fmt.Println("缓冲中已使用的字节数。:", n, "----", wr.Buffered()) //269
+	//fmt.Printf("发送协议包: %#v 缓冲中已使用的字节数 %d \r\n", proto.Op, wr.Buffered())
+	//fmt.Println(p)
 	//fmt.Println("缓冲中还有多少字节未使用。:", wr.Available())         //3827
 
 	err = wr.Flush()
@@ -201,11 +212,54 @@ func tcpWriteProto(wr *bufio.Writer, proto *protocol.Proto) (err error) {
 }
 
 func tcpReadProto(rd *bufio.Reader, proto *protocol.Proto) (err error) {
-	var p []byte
-	_, err = rd.Read(p[0:])
-	if err != nil && err != io.EOF {
-		return err
+	//FdMutex.Lock()
+	//defer FdMutex.Unlock()
+
+	var (
+		packLen   int32
+		headerLen int16
+		Ver       int16  // protocol version
+		Operation int32  // operation for request
+		Seq       int32  // sequence number chosen by client
+		Body      []byte // body
+	)
+	// read
+	if err = binary.Read(rd, binary.BigEndian, &packLen); err != nil {
+		return
 	}
-	proto.Decode(p)
-	return nil
+	if err = binary.Read(rd, binary.BigEndian, &headerLen); err != nil {
+		return
+	}
+	if err = binary.Read(rd, binary.BigEndian, &Ver); err != nil {
+		return
+	}
+	if err = binary.Read(rd, binary.BigEndian, &Operation); err != nil {
+		return
+	}
+	if err = binary.Read(rd, binary.BigEndian, &Seq); err != nil {
+		return
+	}
+	var (
+		n, t    int
+		bodyLen = int(packLen - int32(headerLen))
+	)
+	if bodyLen > 0 {
+		Body = make([]byte, bodyLen)
+		for {
+			if t, err = rd.Read(Body[n:]); err != nil {
+				return
+			}
+			if n += t; n == bodyLen {
+				break
+			}
+		}
+	} else {
+		Body = nil
+	}
+
+	proto.Ver = int32(Ver)
+	proto.Op = int32(Operation)
+	proto.Seq = int32(Seq)
+	proto.Body = Body
+	return
 }

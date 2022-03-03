@@ -2,7 +2,6 @@ package gn
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"syscall"
 )
@@ -48,7 +47,7 @@ func (b *Buffer) ReadFromFD(fd int) error {
 	}
 	b.end += n
 
-	fmt.Println("--ReadFromFD-->", len(b.buf), "---->", b.end)
+	//fmt.Println("--ReadFromFD-->", len(b.buf), "---->", b.end)
 
 	return nil
 }
