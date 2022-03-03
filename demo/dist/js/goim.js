@@ -170,7 +170,7 @@
                 },
                 error:function (res, status, errors){
                     console.log('消息发送失败/(ㄒoㄒ)/~~')
-                    return _.alert('消息发送失败/(ㄒoㄒ)/~~')
+                    //return _.alert('消息发送失败/(ㄒoㄒ)/~~')
                 },
                 complete:function(){
                     //console.log('发送成功')

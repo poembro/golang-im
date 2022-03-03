@@ -15,10 +15,10 @@ var (
 )
 
 const (
-	_prefixMidServer    = "userId_%d"   // userId -> DeviceId:userinfo
-	_prefixKeyServer    = "deviceId_%s" // deviceId -> server
-	_prefixServerOnline = "ol_%s"       // server -> online
-	_prefixMessageAck   = "deviceId_msg_ack_%d"  // deviceId -> RoomId:ack   注: 不与 "deviceId_%s" 合并为1个hset,因为已读偏移是要长期保存
+	_prefixMidServer    = "userId_%d"           // userId -> DeviceId:userinfo
+	_prefixKeyServer    = "deviceId_%s"         // deviceId -> server
+	_prefixServerOnline = "ol_%s"               // server -> online
+	_prefixMessageAck   = "deviceId_msg_ack_%s" // deviceId -> RoomId:ack   注: 不与 "deviceId_%s" 合并为1个hset,因为已读偏移是要长期保存
 	Expire              = 75 * time.Second
 )
 
@@ -40,8 +40,8 @@ func keyMessageAck(deviceId string) string {
 
 // KeysByUserIds get a deviceId server by userId.
 // HGETALL userId_123
-func (c *online) KeysByUserIds(userIds []int64) ([]string, error) {
-	dst := make([]string, 0)
+func (c *online) KeysByUserIds(userIds []int64) (map[string]string, error) {
+	dst := make(map[string]string)
 	for _, userId := range userIds {
 		data, err := db.RedisCli.HGetAll(KeyUserIdServer(userId)).Result()
 		if err != nil {
@@ -50,7 +50,7 @@ func (c *online) KeysByUserIds(userIds []int64) ([]string, error) {
 
 		for k, v := range data {
 			if v != "" {
-				dst = append(dst, data[k])
+				dst[k] = v
 			}
 		}
 	}

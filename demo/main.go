@@ -289,17 +289,15 @@ func apiFindUserList(w http.ResponseWriter, r *http.Request) {
 	userIds, err := cache.Online.KeysByUserIds(ids)
 
 	// 查询已读/未读
-	for _, v := range userIds {
+	for deviceId, v := range userIds {
 		if v == "" {
 			continue
 		}
 		logger.Logger.Debug("apiFindUserList", zap.Any("userJson", v))
 		json.Unmarshal([]byte(v), &u)
 		fmt.Printf("解析用户  : %+v \r\n", u)
-		if u.DeviceId == "" {
-			continue
-		}
-		index, err := cache.Online.GetMessageAckMapping(u.DeviceId, u.RoomId) // 获取消息已读偏移
+
+		index, err := cache.Online.GetMessageAckMapping(deviceId, u.RoomId) // 获取消息已读偏移
 		if err != nil {
 			fmt.Printf("获取消息已读偏移 error : %+v  \n", err)
 			continue
