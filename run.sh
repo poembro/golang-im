@@ -1,5 +1,10 @@
 GO111MODULE="on"
-cd cmd/logic
+
+cd pkg/proto/
+#protoc -I=./  --go_out=plugins=grpc:../pb/ *.proto
+
+
+cd ../../cmd/logic
 rm -f logic
 
 #CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
@@ -20,14 +25,3 @@ echo "停止connect服务"
 sleep 2
 nohup ./connect &
 echo "启动connect服务"
-
-cd ../../demo
-rm -f demo
-#CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
-go build -ldflags "-w -s" -v -o demo main.go
-echo "打包demo成功"
-pkill demo
-echo "停止demo服务"
-sleep 2
-nohup ./demo &
-echo "启动demo服务"

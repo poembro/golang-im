@@ -33,9 +33,10 @@ type ConnectConf struct {
 
 // LogicConf logic配置
 type LogicConf struct {
-	MySQL         string
-	RPCListenAddr string
-	LocalAddr     string
+	HttpListenAddr string
+	MySQL          string
+	RPCListenAddr  string
+	LocalAddr      string
 }
 
 func init() {

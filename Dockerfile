@@ -16,13 +16,16 @@ RUN mkdir -p /webser/logs/
 COPY ./cmd/logic/logic /webser/go_wepapp/golang-im/cmd/logic/
 COPY ./cmd/connect/connect /webser/go_wepapp/golang-im/cmd/connect/
 COPY ./docker-start.sh /webser/go_wepapp/golang-im/
+COPY ./dist /webser/go_wepapp/golang-im/dist
 
 RUN chmod +rwx /webser/go_wepapp/golang-im/cmd/logic/logic
 RUN chmod +rwx /webser/go_wepapp/golang-im/cmd/connect/connect
 RUN chmod +x /webser/go_wepapp/golang-im/docker-start.sh
+RUN chmod +rwx /webser/go_wepapp/golang-im/dist
 
 EXPOSE 8090
 EXPOSE 7923
+EXPOSE 6923
 EXPOSE 50000
 EXPOSE 50100
  

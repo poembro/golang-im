@@ -11,6 +11,7 @@ import (
 
 	"golang-im/config"
 	"golang-im/internal/logic/api"
+	"golang-im/internal/logic/http"
 	"golang-im/pkg/db"
 	"golang-im/pkg/interceptor"
 	"golang-im/pkg/logger"
@@ -27,6 +28,11 @@ func main() {
 	// db.InitEtcd(config.Global.EtcdAddr)
 	// db.InitMysql(config.Logic.MySQL)
 	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
+
+	// 启动HTTP服务器
+	go func() {
+		http.StartHttpServer(config.Logic.HttpListenAddr)
+	}()
 
 	keepParams := grpc.KeepaliveParams(keepalive.ServerParameters{
 		MaxConnectionIdle:     time.Duration(time.Second * 60), //60s 连接最大闲置时间

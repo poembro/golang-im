@@ -24,7 +24,7 @@ func StartTCPServer() {
 		//限制了客户端发送数据的最大长度, 好处是采用sync.pool 内存复用
 		//比如申请1024个字节长度 第一次使用了169字节，第二次使用16个字节,则第二次的16字节覆盖第一次169字节的前面 0-16字节 我们利用偏移只取前16字节即可
 		//参考 https://mp.weixin.qq.com/s/6Nx7IGFU_FbM5AOdUzmvcw
-		gn.WithReadBufferLen(65535),
+		gn.WithReadBufferLen(4096),
 		gn.WithTimeout(5*time.Minute, 11*time.Minute),
 		gn.WithAcceptGNum(10),
 		gn.WithIOGNum(100))

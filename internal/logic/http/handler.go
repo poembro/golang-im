@@ -1,15 +1,8 @@
-package main
+package http
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"strconv"
-	"time"
-
 	"golang-im/config"
 	"golang-im/internal/logic/cache"
 	"golang-im/internal/logic/model"
@@ -19,71 +12,17 @@ import (
 	"golang-im/pkg/pb"
 	"golang-im/pkg/protocol"
 	"golang-im/pkg/util"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 )
-
-type router struct {
-}
-
-func (ro *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/auth/logout": // 退出
-		http.Redirect(w, r, "/admin/login.html", http.StatusFound)
-	case "/auth/register": // 注册
-		apiRegister(w, r)
-	case "/auth/login": // 登录
-		apiLogin(w, r)
-	case "/open/url": // 获取授权参数 后才允许连接推送服务
-		apiUrl(w, r)
-	case "/open/push": // 接收消息写入redis or mq
-		apiPush(w, r)
-	case "/open/finduserlist": // 在线列表
-		apiFindUserList(w, r)
-	case "/upload/file": //文件上传接口
-		apiUpload(w, r)
-	default:
-		StaticServer(w, r)
-	}
-}
-
-func notFound(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNotFound)
-}
-
-// StaticServer 静态文件处理
-func StaticServer(w http.ResponseWriter, req *http.Request) {
-	indexs := []string{"index.html", "index.htm"}
-	filePath := "./dist" + req.URL.Path //注意 注意 注意:这里只能处理 dist 目录下的文件
-	fi, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		http.NotFound(w, req)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	if fi.IsDir() {
-		if req.URL.Path[len(req.URL.Path)-1] != '/' {
-			http.Redirect(w, req, req.URL.Path+"/", 301)
-			return
-		}
-		for _, index := range indexs {
-			fi, err = os.Stat(filePath + index)
-			if err != nil {
-				continue
-			}
-			http.ServeFile(w, req, filePath+index)
-			return
-		}
-		http.NotFound(w, req)
-		return
-	}
-	http.ServeFile(w, req, filePath)
-}
 
 //////////////// api 接口区 ////////////////////
 
@@ -140,16 +79,16 @@ func apiUrl(w http.ResponseWriter, r *http.Request) {
 	// 客服聊天场景
 	dst := model.User{
 		UserId:   model.Int64(sID),                                                       //   用户大多是临时过来咨询,所以这里采用随机唯一
-		Nickname: fmt.Sprintf("用户%d", sID),                                               // 随机昵称
+		Nickname: fmt.Sprintf("user%d", sID),                                             // 随机昵称
 		Face:     "http://img.touxiangwu.com/2020/3/uq6Bja.jpg",                          // 随机头像
 		DeviceId: fmt.Sprintf("%s_%d", platform, sID),                                    // 多个平台达到的效果不一样
 		RoomId:   fmt.Sprintf("%d", sID),                                                 //房间号唯一否则消息串房间
 		ShopId:   mobile,                                                                 // 登录该后台的手机号
-		ShopName: fmt.Sprintf("客服%s", mobile),                                            // 客服昵称
+		ShopName: fmt.Sprintf("shop%s", mobile),                                          // 客服昵称
 		ShopFace: "https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg", // 客服头像
 		Platform: platform,
 		Suburl:   "ws://localhost:7923/ws",                       // 订阅地址
-		Pushurl:  "http://localhost:8888/open/push&platform=web", // 发布地址
+		Pushurl:  "http://localhost:8090/open/push&platform=web", // 发布地址
 	}
 
 	serveJSON(w, resp{
@@ -173,6 +112,7 @@ func apiUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	basedir, _ := os.Getwd() //获取当前目录路径 /webser/go_wepapp/golang-im
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -184,8 +124,8 @@ func apiUpload(w http.ResponseWriter, r *http.Request) {
 			data, _ := ioutil.ReadAll(part)
 			fmt.Printf("FormData=[%s]\n", string(data))
 		} else { // This is FileData
-			newPath = fmt.Sprintf("/upload/%d_%s", time.Now().Unix(), part.FileName())
-			dst, _ := os.Create("./dist" + newPath) // 写入时需要dist 访问路径上不能带有 /dist
+			newPath = fmt.Sprintf("%s/dist/upload/%d_%s", basedir, time.Now().Unix(), part.FileName())
+			dst, _ := os.Create(newPath) // 写入时需要dist 访问路径上不能带有 /dist
 			defer dst.Close()
 			io.Copy(dst, part)
 		}
@@ -468,21 +408,4 @@ func GetMessageList(roomId string, start, stop int64) ([]string, error) {
 	}
 
 	return dst, nil
-}
-
-func main() {
-	logger.Init()
-
-	db.InitRedis(config.Global.RedisIP, config.Global.RedisPassword)
-
-	ipAddr := ":8888"
-
-	t := time.Now().Local().Format("2006-01-02 15:04:05 -0700")
-
-	logger.Logger.Info("http demo 服务已经开启", zap.String("demo_http_server_ip_port", ipAddr+"  "+t))
-
-	err := http.ListenAndServe(ipAddr, &router{})
-	if err != nil {
-		fmt.Println(err)
-	}
 }

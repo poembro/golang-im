@@ -26,11 +26,10 @@ cmd                        golang 服务启动入口
     |___connect            接入层 提供对外长连接端口 如 websocket tcp ，提供对内grpc服务端口
     |___logic              逻辑处理层 提供对内grpc服务端口 
 config                     配置 开发环境 本地环境 生产环境
-demo                       提供一套完整的 用户端聊天界面 与 客服人员回答界面
-    |___dist                 静态文件
-       |___ admin           客服人员聊天静态页面  (一个客服可以跟多个用户聊天)
-       |___ upload          聊天的图片，上传目录
-       |___ im.html         用户端网页咨询窗口的静态页面
+dist                       静态文件 提供一套完整的 用户端聊天界面 与 客服人员回答界面
+    |___ admin           客服人员聊天静态页面  (一个客服可以跟多个用户聊天)
+    |___ upload          聊天的图片，上传目录
+    |___ im.html         用户端网页咨询窗口的静态页面
 internal             
     |___connect             长连接协议处理 ,mq 订阅推送处理)
     |___logic               内部鉴权,消息逻辑 处理
@@ -51,14 +50,12 @@ pkg
     |___ rpc               构建grpc客户端 及 处理服务发现节点
     |___ urlwhitelist      grpc 服务白名单，如有grpc服务方法需要授权访问 防止外部人员向任意房间发消息
     |___ util              工具
-
-run.data.race.sh           竞争检测方式构建
-run.sh                     普通方式构建
-proto.sh                   编译protoc文件为pb文件
+ 
+run.sh                     普通方式构建 并且 运行 
 Dockerfile                 用来构建docker镜像
 docker.run.build.sh        用来构建为可执行文件，方便拷贝到docker镜像里面去
 docker-start.sh            docker启动时脚本   
- 
+tcp_client_testing.go      TCP客户端测试脚本  go run tcp_client_testing.go  222 1 192.168.83.165:6923 
 ``` 
 
 ---
@@ -78,7 +75,7 @@ docker-start.sh            docker启动时脚本
 ``` 
 1. 安装redis  省略
 2. 安装etcd 
-2.1 安装docker-compose 
+2.1 安装 docker-compose 
 # yum -y install libcurl libcurl-devel
 # curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
 # chmod +x /usr/local/bin/docker-compose
@@ -134,10 +131,10 @@ networks:
 [root@iZ~]#sh run.sh
 
 4.运行测试网页  
- 4.1 浏览器打开 http://localhost:8888/admin/login.html
+ 4.1 浏览器打开 http://192.168.83.165:8090/admin/login.html
  4.2 注册 输入手机号 密码 --> 登录  输入手机号 密码
  4.3 点击 底部导航 ”发现“页面  --> 点击浮动头像  即:表示 打开用户端咨询窗口并发送1条消息、
- 4.4 点击 底部导航 ”消息“ 页面  --> 可以看到 用户列表  即:表示 当前所有找我咨询的用户  --> 点击对应用户头像 即:回复咨询页面
+ 4.4 点击 底部导航 ”消息“ 页面  --> 可以看到 用户列表  即:表示 当前所有找我咨询的用户  --> 点击对应用户头像 即:回复咨询页面 
 
 
 
@@ -148,7 +145,7 @@ networks:
 [root@iZ~]#docker image build -t golang-im:1.0.18 .
 
 第一台机器192.168.83.165,启动第一个实例
-[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
+[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 -p 6923:6923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
 
 第一台机器192.168.83.165,启动第二个实例
 [root@iZ~]#docker run -p 50002:50000 -p 50102:50100 -p 7924:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50102 --env GRPC_CONNECT_ADDR=192.168.83.165:50002 --rm golang-im:1.0.18

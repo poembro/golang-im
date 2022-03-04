@@ -1,5 +1,10 @@
 GO111MODULE="on"
-cd cmd/logic
+
+cd pkg/proto/
+#protoc -I=./  --go_out=plugins=grpc:../pb/ *.proto
+
+
+cd ../../cmd/logic
 rm -f logic
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s" -v -o logic main.go
