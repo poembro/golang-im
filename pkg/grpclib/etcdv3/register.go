@@ -57,7 +57,7 @@ func RegisterEtcd(schema, etcdAddr, myHost string, myPort string, srvName string
 	serviceValue := net.JoinHostPort(myHost, myPort)
 	serviceKey := GetPrefix(schema, srvName) + serviceValue
 
-	fmt.Printf("2022-02-25 09:44:38.690	DEBUG	etcdv3/register.go:60	RegisterEtcd %s \r\n", serviceKey)
+	fmt.Printf("2022-02-25 09:44:38.690	DEBUG	etcdv3/register.go:60	RegisterEtcd key:%s lease:%d \r\n", serviceKey, resp.ID)
 
 	//set key->value
 	if _, err := cli.Put(ctx, serviceKey, serviceValue, clientv3.WithLease(resp.ID)); err != nil {

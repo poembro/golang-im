@@ -18,6 +18,19 @@
 ## 描述
 - 在学习goim 与 gim 等项目代码后，做的二者结合，用最精简的方式达到练手实践效果。 
 
+
+---
+
+### 设计方案
+**所有的聊天会话都是向某一个room_id中写消息**：
+- 新成员进入聊天窗口，都必先有个唯一device_id设备标识,两个成员直接相互聊天，本质上就是向两个device_id拼接后的字符串(room_id)写消息；如果有多人群聊即多对多，需额外处理，并不影响该设计
+
+
+**golang负责接受并管理连接**：
+- connect 接入层 如  建立连接后 要多一次订阅房间操作,  将以房间号为key  Room结构为值,存放至全局sync.Map ; 所有连接句柄根据房间号,放入对应Room结构的Conns字段(链表)内  有消息过来 根据房间号 遍历链表的句柄 达到推送效果
+- logic   逻辑处理层，如 在线状态存入redis，房间成员信息 ，已读 未读标识。
+
+
 ---
 
 ## 项目目录简介
@@ -60,69 +73,30 @@ tcp_client_testing.go      TCP客户端测试脚本  go run tcp_client_testing.g
 
 ---
 
-### 设计方案
-**所有的聊天会话都是向某一个room_id中写消息**：
-- 新成员进入聊天窗口，都必先有个唯一device_id设备标识,两个成员直接相互聊天，本质上就是向两个device_id拼接后的字符串(room_id)写消息；如果有多人群聊即多对多，需额外处理，并不影响该设计
-
-
-**golang负责接收并管理连接**：
-- connect 接入层 如  建立连接后 要多一次订阅房间操作,  将以房间号为key  Room结构为值,存放至全局sync.Map ; 所有连接句柄根据房间号,放入对应Room结构的Conns字段(链表)内  有消息过来 根据房间号 遍历链表的句柄 达到推送效果
-- logic   逻辑处理层，如 在线状态存入redis，房间成员信息 ，已读 未读标识。
-
----
-
 ## 安装
 ``` 
-1. 安装redis  省略
-2. 安装etcd 
-2.1 安装 docker-compose 
-# yum -y install libcurl libcurl-devel
-# curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
-# chmod +x /usr/local/bin/docker-compose
-# docker-compose --version
+1. 安装docker redis  省略
+2. 启动etcd 
+docker run --name etcd1 -d -p 2379:2379 -p 2380:2380 -v /Users/luoyuxiang/.laradock/data/etcd:/var/etcd -v /etc/localtime:/etc/localtime registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.2.24 etcd --name etcd-s1 --auto-compaction-retention=1 --data-dir=/var/etcd/etcd-data  --listen-client-urls http://0.0.0.0:2379  --listen-peer-urls http://0.0.0.0:2380  --initial-advertise-peer-urls http://192.168.83.165:2380  --advertise-client-urls http://192.168.83.165:2379,http://192.168.83.165:2380 -initial-cluster-token etcd-cluster  -initial-cluster "etcd-s1=http://192.168.83.165:2380,etcd-s2=http://192.168.83.165:2480,etcd-s3=http://192.168.83.165:2580" -initial-cluster-state new
 
-2.2 [root@iZ~]#mkdir /data/web/etcd/ && cd /data/web/etcd
-2.3 [root@iZ~]#vi docker-compose.yml
-version: "3.5"
-services:
-  etcd:
-    hostname: etcd
-    image: bitnami/etcd:3
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-    # ports:
-    #   - "2379:2379"
-    #   - "2380:2380"
-    #   - "4001:4001"
-    #   - "7001:7001"
-    privileged: true
-    volumes:
-      - "~/.laradock/data/etcd/data:/opt/bitnami/etcd/data"  ##注意这里目录映射
-    environment:
-      - "ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379"
-      - "ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379"
-      - "ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380"
-      - "ETCD_INITIAL_ADVERTISE_PEER_URLS=http://0.0.0.0:2380"
-      - "ALLOW_NONE_AUTHENTICATION=yes"
-      - "ETCD_INITIAL_CLUSTER=node1=http://0.0.0.0:2380"
-      - "ETCD_NAME=node1"
-      - "ETCD_DATA_DIR=/opt/bitnami/etcd/data"
-    ports:
-      - 2379:2379
-      - 2380:2380
-    networks:
-      - etcdnet
-
-networks:
-  etcdnet:
-    name: etcdnet
+docker run --name etcd2  -d -p 2479:2379 -p 2480:2380 -v /Users/luoyuxiang/.laradock/data/etcd2:/var/etcd -v /etc/localtime:/etc/localtime  registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.2.24 etcd --name etcd-s2 --auto-compaction-retention=1 --data-dir=/var/etcd/etcd-data  --listen-client-urls http://0.0.0.0:2479  --listen-peer-urls http://0.0.0.0:2480  --initial-advertise-peer-urls http://192.168.83.165:2480  --advertise-client-urls http://192.168.83.165:2479,http://192.168.83.165:2480 -initial-cluster-token etcd-cluster  -initial-cluster "etcd-s1=http://192.168.83.165:2380,etcd-s2=http://192.168.83.165:2480,etcd-s3=http://192.168.83.165:2580" -initial-cluster-state new
 
 
+########进入镜像 查看集群状态########
+/ # etcdctl --endpoints=http://192.168.83.165:2379,http://192.168.83.165:2479 member list 
+df339c03e281023: name=etcd-s1 peerURLs=http://192.168.83.165:2380 clientURLs=http://192.168.83.165:2379,http://192.168.83.165:2380 isLeader=true
+4087e512fb03a648: name=etcd-s3 peerURLs=http://192.168.83.165:2580 clientURLs= isLeader=false
+68cbc22003188bb9: name=etcd-s2 peerURLs=http://192.168.83.165:2480 clientURLs=http://192.168.83.165:2479,http://192.168.83.165:2480 isLeader=false
 
 
-2.4 [root@iZ~]#docker-compose up -d 
+########待golang-im节点启动后,执行key前缀匹配,查看etcd中已经存在的节点信息######
+# export ETCDCTL_API=3; etcdctl-3.2.24 --endpoints=http://192.168.83.165:2379,http://192.168.83.165:2479 --write-out="simple"  get g --prefix --keys-only
+goim:///connectint_grpc_service/192.168.83.165:50000
+goim:///connectint_grpc_service/192.168.83.165:50002
+goim:///logicint_grpc_service/192.168.83.165:50100
+goim:///logicint_grpc_service/192.168.83.165:50102
+
+
 
 3. 安装golang-im 服务
 [root@iZ~]#cd /data/web
@@ -138,23 +112,26 @@ networks:
 
 
 
-
 5. 多节点集群运行
+- golang 编译构建可执行程序
 [root@iZ~]#sh ./docker.run.build.sh
 
+- 将可执行程序拷贝到 docker 镜像
 [root@iZ~]#docker image build -t golang-im:1.0.18 .
 
+- 用构建好的镜像 启动实例
 第一台机器192.168.83.165,启动第一个实例
-[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 -p 6923:6923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
+[root@iZ~]#docker run --name golang-im01 -d -p 50000:50000 -p 50100:50100 -p 7923:7923 -p 6923:6923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50100 --env GRPC_CONNECT_ADDR=192.168.83.165:50000 --rm golang-im:1.0.18
 
 第一台机器192.168.83.165,启动第二个实例
-[root@iZ~]#docker run -p 50002:50000 -p 50102:50100 -p 7924:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50102 --env GRPC_CONNECT_ADDR=192.168.83.165:50002 --rm golang-im:1.0.18
+[root@iZ~]#docker run --name golang-im02 -d -p 50002:50000 -p 50102:50100 -p 7924:7923 -p 6923:6923 -p 8090:8090 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50102 --env GRPC_CONNECT_ADDR=192.168.83.165:50002 --rm golang-im:1.0.18
 
 第一台机器192.168.83.165,启动第三个实例
-[root@iZ~]#docker run -p 50003:50000 -p 50103:50100 -p 7925:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50103 --env GRPC_CONNECT_ADDR=192.168.83.165:50003 --rm golang-im:1.0.18
+[root@iZ~]#docker run  --name golang-im03 -d -p 50003:50000 -p 50103:50100 -p 7925:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.83.165:50103 --env GRPC_CONNECT_ADDR=192.168.83.165:50003 --rm golang-im:1.0.18
 
 第二台机器192.168.82.220,启动第四个实例 (局域网其他机器 互通)
-[root@iZ~]#docker run -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.220:50100 --env GRPC_CONNECT_ADDR=192.168.82.220:50000 --rm golang-im:1.0.18
+[root@iZ~]#docker run  --name golang-im04 -d -p 50000:50000 -p 50100:50100 -p 7923:7923 --env APP_ENV=local --env GRPC_LOGIC_ADDR=192.168.82.220:50100 --env GRPC_CONNECT_ADDR=192.168.82.220:50000 --rm golang-im:1.0.18
+
 
 ``` 
 
