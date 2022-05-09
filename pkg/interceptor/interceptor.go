@@ -20,7 +20,7 @@ func NewInterceptor(name string, urlWhitelist map[string]int) grpc.UnaryServerIn
 		md, _ := metadata.FromIncomingContext(ctx)
 		resp, err = handleWithAuth(ctx, req, info, handler, urlWhitelist)
 
-		logger.Logger.Debug(name, zap.String("desc", "网关拦截日志"), zap.Any("method", info.FullMethod), zap.Any("md", md), zap.Any("req", req),
+		logger.Logger.Debug(name, zap.String("desc", "grpc gateway"), zap.Any("method", info.FullMethod), zap.Any("md", md), zap.Any("req", req),
 			zap.Any("resp", resp), zap.Error(err))
 
 		s, _ := status.FromError(err)
@@ -35,18 +35,17 @@ func NewInterceptor(name string, urlWhitelist map[string]int) grpc.UnaryServerIn
 
 // handleWithAuth 处理鉴权逻辑
 func handleWithAuth(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler, urlWhitelist map[string]int) (interface{}, error) {
-	//serverName := strings.Split(info.FullMethod, "/")[1]
-	//logger.Sugar.Infow("---->判断该方法是否需要鉴权", "method", info.FullMethod)
-	//if !strings.HasSuffix(serverName, "Int") {
 	if _, ok := urlWhitelist[info.FullMethod]; !ok {
-		userId, deviceId, err := grpclib.GetCtxData(ctx)
+		requestId := grpclib.GetCtxRequestIdStr(ctx)
+
+		userId, deviceId, err := grpclib.GetCtxDataStr(ctx)
 		if err != nil {
-			logger.Sugar.Infow("---->处理鉴权逻辑失败 头信息没有user_id device_id")
+			logger.Sugar.Infow("---->处理鉴权逻辑失败 grpc头信息没有user_id device_id")
 			return nil, err
 		}
 		token, err := grpclib.GetCtxToken(ctx)
 		if err != nil {
-			logger.Sugar.Infow("---->处理鉴权逻辑失败 头信息没有token")
+			logger.Sugar.Infow("---->处理鉴权逻辑失败 grpc头信息没有token")
 			return nil, err
 		}
 
@@ -58,11 +57,11 @@ func handleWithAuth(ctx context.Context, req interface{}, info *grpc.UnaryServer
 		//})
 
 		logger.Logger.Debug("handleWithAuth",
-			zap.String("desc", " auth success "),
-			zap.Any("userId", userId),
+			zap.String("desc", "grpc gateway"),
+			zap.String("userId", userId),
 			zap.String("deviceId", deviceId),
-			zap.String("token", token))
+			zap.String("token", token),
+			zap.String("requestId", requestId))
 	}
-	//}
 	return handler(ctx, req)
 }

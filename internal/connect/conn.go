@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"golang-im/config"
+	"golang-im/conf"
 	"golang-im/pkg/gn"
 	"golang-im/pkg/grpclib"
 	"golang-im/pkg/logger"
@@ -27,7 +27,8 @@ const (
 )
 
 type Conn struct {
-	CoonType          int8            // 连接类型
+	CoonType          int8 // 连接类型
+	Config            *conf.Config
 	TCP               *gn.Conn        // tcp连接
 	FdMutex           sync.Mutex      // 写锁
 	WS                *websocket.Conn // websocket连接
@@ -51,7 +52,7 @@ func (c *Conn) Close() error {
 		DeleteConn(c.DeviceId)
 
 		// 通知Logic服务谁已经下线
-		_, _ = rpc.LogicInt().Offline(context.TODO(), &pb.OfflineReq{
+		_, _ = rpc.LogicInt(c.Config).Offline(context.TODO(), &pb.OfflineReq{
 			UserId:     c.UserId,
 			DeviceId:   c.DeviceId,
 			ClientAddr: c.GetAddr(),
@@ -138,7 +139,7 @@ func (c *Conn) HandleMessage(bytes []byte) {
 	input = new(protocol.Proto)
 	input.Decode(bytes)
 
-	logger.Logger.Debug("HandleMessage", zap.String("desc", fmt.Sprintf("op:%d msg:%s", input.Op, "收到")), zap.Any("input", string(input.Body)))
+	logger.Logger.Info("HandleMessage", zap.String("desc", fmt.Sprintf("op:%d msg:%s", input.Op, "收到")), zap.Any("input", string(input.Body)))
 
 	// 对未登录的用户进行拦截
 	if input.Op != protocol.OpAuth && c.UserId == 0 {
@@ -174,14 +175,13 @@ func (c *Conn) HandleMessage(bytes []byte) {
 func (c *Conn) MessageACK(p *protocol.Proto) {
 	tmp := string(p.Body)
 	index, _ := strconv.Atoi(tmp)
-	_, err := rpc.LogicInt().MessageACK(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
-		&pb.MessageACKReq{
-			UserId:      c.UserId,
-			DeviceId:    c.DeviceId,
-			RoomId:      c.RoomId,
-			DeviceAck:   int64(index), //这里需要 body转int64 标识已经读到哪里了
-			ReceiveTime: time.Now().UnixNano(),
-		})
+	_, err := rpc.LogicInt(c.Config).MessageACK(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), &pb.MessageACKReq{
+		UserId:      c.UserId,
+		DeviceId:    c.DeviceId,
+		RoomId:      c.RoomId,
+		DeviceAck:   int64(index), //这里需要 body转int64 标识已经读到哪里了
+		ReceiveTime: time.Now().UnixNano(),
+	})
 	if err != nil {
 		return
 	}
@@ -192,12 +192,11 @@ func (c *Conn) MessageACK(p *protocol.Proto) {
 
 // Sync 同步历史聊天记录
 func (c *Conn) Sync(p *protocol.Proto) {
-	resp, err := rpc.LogicInt().Sync(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), // 333 对应 time.Now().UnixNano()
-		&pb.SyncReq{
-			UserId:   c.UserId,
-			DeviceId: c.DeviceId,
-			Seq:      2,
-		})
+	resp, err := rpc.LogicInt(c.Config).Sync(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), &pb.SyncReq{
+		UserId:   c.UserId,
+		DeviceId: c.DeviceId,
+		Seq:      2,
+	})
 	if err != nil {
 		return
 	}
@@ -208,14 +207,13 @@ func (c *Conn) Sync(p *protocol.Proto) {
 
 // SignIn 登录
 func (c *Conn) SignIn(p *protocol.Proto) {
-	resp, err := rpc.LogicInt().ConnSignIn(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
-		&pb.ConnSignInReq{
-			Body:       p.Body,
-			ConnAddr:   config.Connect.LocalAddr,
-			ClientAddr: c.GetAddr(),
-		})
+	resp, err := rpc.LogicInt(c.Config).ConnSignIn(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), &pb.ConnSignInReq{
+		Body:       p.Body,
+		ConnAddr:   c.Config.Connect.LocalAddr,
+		ClientAddr: c.GetAddr(),
+	})
 	if err != nil {
-		logger.Logger.Debug("SignIn", zap.Error(err))
+		logger.Logger.Debug("SignIn", zap.String("error", err.Error()))
 		return
 	}
 	p.Op = protocol.OpAuthReply
@@ -239,19 +237,19 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 		Type:      pb.PushMsg_ROOM, //  测试时改 pb.PushMsg_PUSH 并给 DeviceId 属性赋值
 		Operation: protocol.OpSendMsgReply,
 		Speed:     2,
-		Server:    config.Connect.LocalAddr,
+		Server:    c.Config.Connect.LocalAddr,
 		RoomId:    c.RoomId,
 		Msg:       p.Body,
-		DeviceId:  []string{"md5_platform_user_id1645755332", "md5_platform_user_id13000000000"},
+		DeviceId:  []string{c.DeviceId},
 	}
 	// 加上grpc头防止api授权拦截
 	ctx := metadata.NewOutgoingContext(context.TODO(), metadata.Pairs(
 		"user_id", strconv.FormatInt(c.UserId, 10),
 		"device_id", c.DeviceId,
-		"token", "md5/jwt/xxx",
-		"request_id", strconv.Itoa(int(p.Seq))))
+		"token", "TODO token verify",
+		"request_id", fmt.Sprintf("%d", p.Seq)))
 
-	_, err := rpc.LogicInt().SendMessage(ctx, &pb.PushMsgReq{Message: buf})
+	_, err := rpc.LogicInt(c.Config).SendMessage(ctx, &pb.PushMsgReq{Message: buf})
 	if err != nil {
 		return
 	}
@@ -260,12 +258,11 @@ func (c *Conn) OpSendMsg(p *protocol.Proto) {
 // Heartbeat 心跳
 func (c *Conn) Heartbeat(p *protocol.Proto) {
 	c.LastHeartbeatTime = time.Now()
-	_, err := rpc.LogicInt().Heartbeat(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)),
-		&pb.HeartbeatReq{
-			UserId:   c.UserId,
-			DeviceId: c.DeviceId,
-			ConnAddr: config.Connect.LocalAddr,
-		})
+	_, err := rpc.LogicInt(c.Config).Heartbeat(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), &pb.HeartbeatReq{
+		UserId:   c.UserId,
+		DeviceId: c.DeviceId,
+		ConnAddr: c.Config.Connect.LocalAddr,
+	})
 	if err != nil {
 		logger.Logger.Debug("Heartbeat", zap.Error(err))
 		return
@@ -278,6 +275,7 @@ func (c *Conn) Heartbeat(p *protocol.Proto) {
 
 // OpSub 订阅房间
 func (c *Conn) OpSub(p *protocol.Proto) {
+	logger.Logger.Info("OpSub", zap.String("desc", "订阅房间"), zap.String("input", string(p.Body)))
 	SubscribedRoom(c, string(p.Body))
 	p.Op = protocol.OpSubReply
 	p.Body = []byte("subscribed room ok")
@@ -304,6 +302,8 @@ func (c *Conn) OpChangeRoom(p *protocol.Proto) {
 	   1.接收房间号
 	   2.丢给logic 服务 验证房间号 防止串台
 	*/
+	logger.Logger.Info("OpChangeRoom", zap.String("desc", "订阅房间"), zap.String("input", string(p.Body)))
+
 	SubscribedRoom(c, "")
 	SubscribedRoom(c, string(p.Body))
 

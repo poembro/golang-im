@@ -2,8 +2,9 @@ package gn
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // 对端关闭连接 8193
@@ -116,9 +117,13 @@ func closeFDRead(fd int) error {
 	return nil
 }
 
-func getEvents() ([]event, error) {
+func getEvents(msec int) ([]event, error) {
+	//var epollEvents [1]syscall.EpollEvent
 	epollEvents := make([]syscall.EpollEvent, 100)
-	n, err := syscall.EpollWait(epollFD, epollEvents, -1)
+	// 3 个参数，分别表示 epoll 的fd、回调事件、等待时间;
+	//msec: -1 空闲状态使用 即无限等待事件到来,
+	//msec: 0 在频繁事件触发场景下要快 18% 左右
+	n, err := syscall.EpollWait(epollFD, epollEvents, msec)
 	if err != nil {
 		return nil, err
 	}

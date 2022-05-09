@@ -227,6 +227,9 @@ func (s *Server) handleEvent(event event) {
 
 // StartProducer 启动生产者
 func (s *Server) startIOProducer() {
+	var (
+		msec = int(-1)
+	)
 	log.Info("start io producer")
 	for {
 		select {
@@ -234,10 +237,20 @@ func (s *Server) startIOProducer() {
 			log.Error("stop producer")
 			return
 		default:
-			events, err := getEvents()
+			events, err := getEvents(msec)
 			if err != nil {
 				log.Error(err)
 			}
+			if len(events) <= 0 {
+				msec = -1
+				//log.Debug(" 让出CPU时间片 去干别的:", msec)
+				runtime.Gosched()
+				//log.Debug(" 回来了 设置epoll为空闲状态:", msec)
+				continue
+			}
+
+			msec = 0
+			//log.Debug(" 有事件过来 设置epoll为频繁事件触发场景:", msec)
 			for i := range events {
 				s.handleEvent(events[i])
 			}

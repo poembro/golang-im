@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package gn
@@ -18,6 +19,6 @@ func closeFDRead(fd int) error {
 	panic("please run in linux")
 }
 
-func getEvents() ([]event, error) {
+func getEvents(msec int) ([]event, error) {
 	panic("please run in linux")
 }

@@ -6,8 +6,8 @@ LABEL version="0.0.1" description="这是一个golang im服务器"
 WORKDIR /webser/go_wepapp/golang-im
 
 ENV APP_ENV=local 
-ENV GRPC_CONNECT_ADDR=192.168.83.165:50000
-ENV GRPC_LOGIC_ADDR=192.168.83.165:50100
+ENV GRPC_CONNECT_ADDR=192.168.84.168:50000
+ENV GRPC_LOGIC_ADDR=192.168.84.168:50100
 
 RUN mkdir -p /webser/go_wepapp/golang-im/cmd/logic
 RUN mkdir -p /webser/go_wepapp/golang-im/cmd/connect

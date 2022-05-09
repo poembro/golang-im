@@ -28,18 +28,16 @@ func DeleteConn(deviceId string) {
 	ConnsManager.Delete(deviceId)
 }
 
+// 下发频率限制
+var Ops = uint64(0)
+
 // PushAll 给所有人推送消息
 func PushAll(speed int32, p *protocol.Proto) {
-	var (
-		ops int32
-	)
-
 	ConnsManager.Range(func(key, value interface{}) bool {
-		if ops%1024 == speed {
-			time.Sleep(time.Duration(1) * time.Second)
+		opsFinal := atomic.AddUint64(&Ops, 1)
+		if opsFinal%1024 == 0 {
+			time.Sleep(time.Duration(speed) * time.Second)
 		}
-
-		atomic.AddInt32(&ops, 1)
 
 		conn := value.(*Conn)
 		conn.Send(p)

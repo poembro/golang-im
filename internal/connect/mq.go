@@ -2,11 +2,12 @@ package connect
 
 import (
 	"fmt"
-	"golang-im/config"
+	"golang-im/conf"
 	"golang-im/pkg/db"
 	"golang-im/pkg/logger"
 	"golang-im/pkg/pb"
 	"golang-im/pkg/protocol"
+	"golang-im/pkg/util"
 
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/proto"
@@ -14,20 +15,23 @@ import (
 )
 
 // StartSubscribe 将redis的数据 推送到全局Map
-func StartSubscribe() {
-	channel := db.RedisCli.Subscribe(config.Global.PushAllTopic).Channel()
-	for i := 0; i < config.Connect.SubscribeNum; i++ {
-		go msgHandle(channel)
+func StartSubscribe(c *conf.Config) {
+	cli := db.InitRedis(c.Global.RedisIP, c.Global.RedisPassword)
+
+	channel := cli.Subscribe(c.Global.PushAllTopic).Channel()
+	for i := 0; i < c.Connect.SubscribeNum; i++ {
+		go doHandle(c, channel)
 	}
 }
 
-func msgHandle(channel <-chan *redis.Message) {
-	for msg := range channel {
-		if msg.Channel != config.Global.PushAllTopic {
+func doHandle(c *conf.Config, channel <-chan *redis.Message) {
+	for body := range channel {
+		if body.Channel != c.Global.PushAllTopic {
 			continue
 		}
 		pushMsg := new(pb.PushMsg)
-		err := proto.Unmarshal([]byte(msg.Payload), pushMsg)
+		//err := proto.Unmarshal([]byte(body.Payload), pushMsg)
+		err := proto.Unmarshal(util.S2B(body.Payload), pushMsg) //采用无拷贝方式转换
 		if err != nil {
 			logger.Logger.Debug("StartSubscribe", zap.Error(err))
 			continue
@@ -47,8 +51,8 @@ func Dispatch(m *pb.PushMsg) {
 	case pb.PushMsg_BROADCAST:
 		_pushAll(m.Operation, m.Msg, m.Speed)
 	default:
-		err := fmt.Errorf("no match push type: %s", m.Type)
-		logger.Logger.Debug("handlePushAll", zap.Any("err", err))
+		strErr := fmt.Sprintf("no match push type: %s", m.Type)
+		logger.Logger.Debug("handlePushAll", zap.String("error", strErr))
 	}
 }
 

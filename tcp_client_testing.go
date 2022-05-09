@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"encoding/binary"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"golang-im/pkg/protocol"
@@ -121,21 +120,11 @@ func startClient(key int64) {
 	wr := bufio.NewWriter(conn)
 	rd := bufio.NewReader(conn)
 
-	authToken := &AuthToken{
-		key,
-		"xxx",
-		"https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg",
-		"1646188353",
-		"1646188353",
-		"yyyyyshop",
-		"http://img.touxiangwu.com/2020/3/uq6Bja.jpg",
-		"web",
-	}
 	proto := new(protocol.Proto)
 	proto.Ver = 1
 	proto.Op = 7
 	proto.Seq = 222
-	proto.Body, _ = json.Marshal(authToken)
+	proto.Body = []byte(`{"device_id":"5b93a952fe2f7ce116812890d8bb0806","face":"http://img.touxiangwu.com/2020/3/uq6Bja.jpg","nickname":"user405063324158394378","platform":"web","pushurl":"http://localhost:8090/open/push?&platform=web","room_id":"405063324158394378","shop_face":"https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg","shop_id":"13200000000","shop_name":"shop13200000000","suburl":"ws://localhost:7923/ws","user_id":"405063324158394378"}`)
 	if err = tcpWriteProto(wr, proto); err != nil {
 		log.Errorf("tcpWriteProto() error(%v)", err)
 		return

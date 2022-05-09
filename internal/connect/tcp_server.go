@@ -1,7 +1,6 @@
 package connect
 
 import (
-	"golang-im/config"
 	"golang-im/pkg/logger"
 	"time"
 
@@ -15,11 +14,11 @@ var encoder = gn.NewHeaderLenEncoder(4, 1024)
 var server *gn.Server
 
 // StartTCPServer 启动gn TCP框架 监听端口
-func StartTCPServer() {
-	gn.SetLogger(logger.Sugar)
+func StartTCPServer(TCPListenAddr string) {
+	gn.SetLogger(logger.Sugar) //设置日志样式
 
 	var err error
-	server, err = gn.NewServer(config.Connect.TCPListenAddr, &handler{},
+	server, err = gn.NewServer(TCPListenAddr, &handler{},
 		gn.NewHeaderLenDecoder(4),
 		//限制了客户端发送数据的最大长度, 好处是采用sync.pool 内存复用
 		//比如申请1024个字节长度 第一次使用了169字节，第二次使用16个字节,则第二次的16字节覆盖第一次169字节的前面 0-16字节 我们利用偏移只取前16字节即可
@@ -36,17 +35,22 @@ func StartTCPServer() {
 	server.Run()
 }
 
+func NewTcpConn(fd *gn.Conn) *Conn {
+	return &Conn{
+		CoonType:          CoonTypeTCP,
+		Config:            config,
+		TCP:               fd,
+		LastHeartbeatTime: time.Now(),
+	}
+}
+
 type handler struct{}
 
 var Handler = new(handler)
 
 func (*handler) OnConnect(c *gn.Conn) {
 	// 初始化连接数据
-	conn := &Conn{
-		CoonType:          CoonTypeTCP,
-		TCP:               c,
-		LastHeartbeatTime: time.Now(),
-	}
+	conn := NewTcpConn(c)
 	c.SetData(conn)
 	logger.Logger.Debug("OnConnect", zap.Int32("fd", c.GetFd()), zap.String("addr", c.GetAddr()))
 }
