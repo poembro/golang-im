@@ -53,6 +53,7 @@ func (h *Router) Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write([]byte(`pong`))
 }
+
 func (h *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//defer util.RecoverPanic()
 	if !cosMiddleware(w, r) {
@@ -78,8 +79,10 @@ func (h *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		verifyMiddleware(w, r, h.apiFindUserList)
 	case "/upload/file": // 文件上传接口
 		verifyMiddleware(w, r, h.apiUpload)
-	case "/clearData": // 清理数据
+	case "/open/clearData": // 清理数据
 		h.apiClearData(w, r)
+	case "/open/listmsg": // 历史消息
+		verifyMiddleware(w, r, h.ListMsg)
 	case "/open/listIpblack": // 黑名单列表
 		verifyMiddleware(w, r, h.listIpblack)
 	case "/open/addIpblack": // ip添加至黑名单

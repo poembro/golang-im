@@ -112,7 +112,7 @@ var app=new Vue({
             }
             this.socket.sendMsg(dst)
         },
-        getMesssagesByUserId(userId,isAll){ //获取历史消息列表
+        getMesssagesByUserId(userId){ //获取历史消息列表
             let _this=this;
             console.log("获取历史消息列表")
         },
@@ -222,15 +222,15 @@ var app=new Vue({
                 });
             });
         },
-        transKefu(){//转移客服
-            this.transKefuDialog=true;
-            var _this=this;
+        transKefu() { //转移客服
+            this.transKefuDialog = true;
+            var _this = this;
             this.sendAjax("/other_kefulist","get",{},function(result){
                 _this.otherKefus=result;
             });
         },
-        transKefuUser(kefu,userId){ //转移访客客服
-            var _this=this;
+        transKefuUser(kefu,userId) { //转移访客客服
+            var _this = this;
             this.sendAjax("/trans_kefu","get",{kefu_id:kefu,user_id:userId},function(result){
                 //_this.otherKefus=result;
                 _this.transKefuDialog = false

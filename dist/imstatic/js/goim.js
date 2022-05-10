@@ -361,9 +361,11 @@
             return flag
         }, 
         syncMsgReceived :  function (ws, body) {
-            var show = JSON.parse(body)
-            if (show) {
-                _.render.show(show)
+            var shows = JSON.parse(body)
+            if (shows) {
+                for(var i=0;i<shows.length; i++){
+                    _.render.show(shows[i])
+                }
             }
         },
         messageReceived :  function (ws, body) {

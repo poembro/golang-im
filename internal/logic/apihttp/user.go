@@ -45,7 +45,7 @@ func buildUserMap(r *http.Request, userId, shopId, shopName, shopFace string) ma
 		"nickname":    nickname,                                      // 随机昵称
 		"face":        "http://img.touxiangwu.com/2020/3/uq6Bja.jpg", // 随机头像
 		"device_id":   deviceId,                                      // 多个平台达到的效果不一样
-		"room_id":     svc.BuildDeviceId(userId, shopId),             //房间号唯一否则消息串房间(暂时以用户id为房间号)
+		"room_id":     svc.BuildDeviceId(userId, deviceId),           //房间号唯一否则消息串房间(暂时以用户id为房间号)
 		"shop_id":     shopId,                                        // 登录该后台的手机号
 		"shop_name":   shopName,                                      // 客服昵称
 		"shop_face":   shopFace,                                      // 客服头像
@@ -141,8 +141,10 @@ func (h *Router) apiRegister(w http.ResponseWriter, r *http.Request) {
 		OutJson(w, OutData{Code: -1, Success: false, Msg: err.Error()})
 		return
 	}
+
 	face := "https://img.wxcha.com/m00/86/59/7c6242363084072b82b6957cacc335c7.jpg"
 	svc.AddShop(strconv.FormatUint(sID, 10), nickname, face, password)
+
 	OutJson(w, OutData{Code: 200, Success: true, Msg: "success", Result: "xxx"})
 	return
 }

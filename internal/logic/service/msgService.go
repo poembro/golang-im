@@ -4,6 +4,7 @@ import (
 	"context"
 	"golang-im/pkg/grpclib"
 	"golang-im/pkg/rpc"
+	"golang-im/pkg/util"
 
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/metadata"
@@ -49,9 +50,25 @@ func (s *Service) SendRoom(ctx context.Context, msg *pb.PushMsg) error {
 }
 
 // Sync 消息同步
-func (*Service) Sync(ctx context.Context, userId, seq int64) (*pb.SyncResp, error) {
-	msg := []byte(`{"name":"zhangsan","sex":2}`)
-	resp := &pb.SyncResp{Messages: msg, HasMore: false}
+func (s *Service) Sync(ctx context.Context, roomId string, seq int64) (*pb.SyncResp, error) {
+	dst, err := s.dao.GetMessageList(roomId, 0, 50) // 取回最近50条消息
+	if err != nil {
+		return nil, gerrors.WrapError(err)
+	}
+	max := len(dst)
+	//sort.Sort(sort.Reverse(sort.StringSlice(dst))) //倒序失败
+
+	jsonStr := "["
+	for i := max - 1; i >= 0; i-- {
+		jsonStr += dst[i]
+		if i == 0 {
+			continue
+		}
+		jsonStr += ","
+	}
+	jsonStr = jsonStr + "]"
+
+	resp := &pb.SyncResp{Messages: util.S2B(jsonStr), HasMore: false}
 	return resp, nil
 }
 
@@ -69,6 +86,11 @@ func (s *Service) GetMessageCount(roomId, start, stop string) (int64, error) {
 // GetMessageList 取回消息
 func (s *Service) GetMessageList(roomId string, start, stop int64) ([]string, error) {
 	return s.dao.GetMessageList(roomId, start, stop)
+}
+
+// GetMessagePageList 取回消息分页
+func (s *Service) GetMessagePageList(roomId, min, max string, page, limit int64) ([]string, int64, error) {
+	return s.dao.GetMessagePageList(roomId, min, max, page, limit)
 }
 
 // AddMessageList 将消息添加到对应房间 roomId.

@@ -26,7 +26,7 @@ func NewDiscovery(schema, etcdAddr, srvName string) resolver.Builder {
 	cli, err := newClient(etcdAddr)
 
 	if err != nil {
-		fmt.Printf("etcd 连接错误 %s \r\n", err.Error())
+		fmt.Printf("2022-02-25 09:44:38.690	DEBUG	etcdv3/descovery.go:29	etcd 连接错误 %s \r\n", err.Error())
 	}
 
 	r := &Discovery{

@@ -38,7 +38,7 @@ message ConnSignInResp {
 message MessageACKReq {
   int64 user_id = 1; // 用户id
   string device_id = 2; // 设备id
-  string room_id = 3; // 设备id
+  string room_id = 3; // 房间id
   int64 device_ack = 4; // 设备收到消息的确认号
   int64 receive_time = 5; // 消息接收时间戳，精确到毫秒
 }
@@ -48,7 +48,8 @@ message MessageACKResp {
 message SyncReq {
   int64 user_id = 1; // 用户id
   string device_id = 2; // 设备id
-  int64 seq = 3; // 客户端已经同步的序列号
+  string room_id = 3; // 房间id
+  int64 seq = 4; // 客户端已经同步的序列号
 }
 
 message SyncResp {

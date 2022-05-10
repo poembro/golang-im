@@ -44,7 +44,7 @@ func (d *Dao) GetMessageCount(roomId, start, stop string) (int64, error) {
 	return dst, nil
 }
 
-// GetMessageList 取回消息
+// GetMessageList 取回消息 返回切片
 func (d *Dao) GetMessageList(roomId string, start, stop int64) ([]string, error) {
 	dst, err := d.RdsCli.ZRevRange(KeyMsgList(roomId), start, stop).Result()
 	if err != nil {
@@ -55,17 +55,22 @@ func (d *Dao) GetMessageList(roomId string, start, stop int64) ([]string, error)
 }
 
 // GetMessagePageList 取回消息分页  func("10010", "-", "+", 0, 3)
-func (d *Dao) GetMessagePageList(roomId, min, max string, page, limit int64) ([]string, error) {
-	dst, err := d.RdsCli.ZRangeByLex(KeyMsgList(roomId), redis.ZRangeBy{
-		Min:    min,
-		Max:    max,
+func (d *Dao) GetMessagePageList(roomId, min, max string, page, limit int64) ([]string, int64, error) {
+	var total int64 // 条数
+	var err error
+	key := KeyMsgList(roomId)
+	total, err = d.RdsCli.ZCount(key, min, max).Result()
+
+	ids, err := d.RdsCli.ZRevRangeByScore(key, redis.ZRangeBy{
+		Min:    min, //"-inf"
+		Max:    max, // "+inf"
 		Offset: (page - 1) * limit,
 		Count:  limit,
 	}).Result()
 
 	if err != nil {
-		return dst, gerrors.WrapError(err)
+		return ids, total, gerrors.WrapError(err)
 	}
 
-	return dst, nil
+	return ids, total, nil
 }

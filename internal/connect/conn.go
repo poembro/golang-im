@@ -195,6 +195,7 @@ func (c *Conn) Sync(p *protocol.Proto) {
 	resp, err := rpc.LogicInt(c.Config).Sync(grpclib.ContextWithRequstId(context.TODO(), int64(p.Seq)), &pb.SyncReq{
 		UserId:   c.UserId,
 		DeviceId: c.DeviceId,
+		RoomId:   c.RoomId,
 		Seq:      2,
 	})
 	if err != nil {

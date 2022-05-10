@@ -72,7 +72,7 @@
                             :title="chatTitle"
                             >
                     </el-alert>
-                    <!-- 
+                    <!--
                     <div class="kefuFuncBtns" v-if="user.user_id">
                         <el-button v-on:click="getMesssagesByUserId(user.user_id,true)" size="small" type="success" plain icon="el-icon-user">加载全部</el-button>
                         <el-button v-on:click="transKefu" size="small" type="success" plain icon="el-icon-position">转接</el-button>
@@ -162,21 +162,16 @@
             </el-col>
         </el-row>
     
+        
         <!--转接-->
+        <!-- 
         <el-dialog title="转移客服" :visible.sync="transKefuDialog" width="30%" top="0">
-            <el-table
-                    :data="otherKefus"
-                    style="width: 100%">
-                <el-table-column
-                        prop="nickname"
-                        label="客服">
-                </el-table-column>
-                <el-table-column
-                        prop="status"
-                        label="操作">
+            <el-table :data="otherKefus" style="width: 100%">
+                <el-table-column prop="nickname" label="客服"> </el-table-column>
+
+                <el-table-column prop="status" label="操作">
                     <template slot-scope="scope">
-                        <el-tag v-show="scope.row.status=='offline'"
-                                disable-transitions>离线</el-tag>
+                        <el-tag v-show="scope.row.status=='offline'" disable-transitions>离线</el-tag>
                         <el-button v-show="scope.row.status=='online'" type="primary" @click="transKefuUser(scope.row.name,user.user_id)">转移</el-button>
                     </template>
                 </el-table-column>
@@ -186,6 +181,7 @@
                 <el-button @click="transKefuDialog = false">取 消</el-button>
               </span>
         </el-dialog>
+        -->
         <!--//转接-->
     </template>
 </div>

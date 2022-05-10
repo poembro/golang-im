@@ -55,7 +55,7 @@ func (*LogicIntServer) MessageACK(ctx context.Context, req *pb.MessageACKReq) (*
 
 // Sync 设备同步消息
 func (*LogicIntServer) Sync(ctx context.Context, req *pb.SyncReq) (*pb.SyncResp, error) {
-	return svc.Sync(ctx, req.UserId, req.Seq)
+	return svc.Sync(ctx, req.RoomId, req.Seq)
 }
 
 // Heartbeat 心跳包
