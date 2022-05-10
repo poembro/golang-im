@@ -27,11 +27,6 @@ func StringToBytes(s string) []byte {
 	))
 }
 
-// gin []byte 转 字符串
-func BytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
 ////////////////////////////////////
 // fasthttp 字符串转 []byte
 func S2B(s string) (b []byte) {
@@ -58,11 +53,6 @@ func Str2bytes(s string) []byte {
 	x := (*[2]uintptr)(unsafe.Pointer(&s))
 	h := [3]uintptr{x[0], x[1], x[1]}
 	return *(*[]byte)(unsafe.Pointer(&h))
-}
-
-// []byte 转 字符串
-func Bytes2str(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
 }
 
 ////////////////////////////////

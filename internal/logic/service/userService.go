@@ -63,6 +63,6 @@ func (s *Service) AddShop(userId, nickname, face, password string) error {
 		Password: password,
 	}
 
-	bytes, _ := json.Marshal(dst)
-	return s.dao.AddShop(nickname, util.B2S(bytes))
+	bytes := util.JsonMarshal(dst)
+	return s.dao.AddShop(nickname, bytes)
 }
