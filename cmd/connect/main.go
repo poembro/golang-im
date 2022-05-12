@@ -10,9 +10,11 @@ import (
 	"golang-im/pkg/rpc"
 	"golang-im/pkg/rpc/etcdv3"
 	"golang-im/pkg/urlwhitelist"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -22,8 +24,10 @@ import (
 )
 
 func main() {
-	logger.Init()
+	rand.Seed(time.Now().UTC().UnixNano())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	logger.Init()
 	connect.New(conf.Conf)
 
 	keepParams := grpc.KeepaliveParams(keepalive.ServerParameters{

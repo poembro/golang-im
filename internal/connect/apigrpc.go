@@ -8,6 +8,8 @@ import (
 
 type ConnIntServer struct{}
 
+var _ pb.ConnectIntServer = &ConnIntServer{}
+
 func NewConnIntServer() *ConnIntServer {
 	return &ConnIntServer{}
 }

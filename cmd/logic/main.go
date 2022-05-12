@@ -1,9 +1,11 @@
 package main
 
 import (
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -23,6 +25,9 @@ import (
 )
 
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	logger.Init()
 
 	// 启动HTTP服务器
