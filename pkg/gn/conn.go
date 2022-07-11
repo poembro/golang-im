@@ -1,6 +1,7 @@
 package gn
 
 import (
+	"golang-im/pkg/gn/codec"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -8,22 +9,29 @@ import (
 
 // Conn 客户端长连接
 type Conn struct {
-	server       *Server     // 服务器引用
-	fd           int32       // 文件描述符
-	addr         string      // 对端地址
-	buffer       *Buffer     // 读缓存区
-	lastReadTime time.Time   // 最后一次读取数据的时间
-	data         interface{} // 业务自定义数据，用作扩展
+	server *Server       // 服务器引用
+	fd     int32         // 文件描述符
+	addr   string        // 对端地址
+	buffer *codec.Buffer // 读缓存区
+	timer  *time.Timer   // 连接超时定时器
+	data   interface{}   // 业务自定义数据，用作扩展
 }
 
 // newConn 创建tcp链接
 func newConn(fd int32, addr string, server *Server) *Conn {
+	var timer *time.Timer
+	if server.options.timeout != 0 {
+		timer = time.AfterFunc(server.options.timeout, func() {
+			server.handleTimeoutEvent(fd)
+		})
+	}
+
 	return &Conn{
-		server:       server,
-		fd:           fd,
-		addr:         addr,
-		buffer:       NewBuffer(server.readBufferPool.Get().([]byte)),
-		lastReadTime: time.Now(),
+		server: server,
+		fd:     fd,
+		addr:   addr,
+		buffer: codec.NewBuffer(server.readBufferPool.Get().([]byte)),
+		timer:  timer,
 	}
 }
 
@@ -38,13 +46,16 @@ func (c *Conn) GetAddr() string {
 }
 
 // GetBuffer 获取客户端地址
-func (c *Conn) GetBuffer() *Buffer {
+func (c *Conn) GetBuffer() *codec.Buffer {
 	return c.buffer
 }
 
 // Read 读取数据
 func (c *Conn) Read() error {
-	c.lastReadTime = time.Now()
+	if c.server.options.timeout != 0 {
+		c.timer.Reset(c.server.options.timeout)
+	}
+
 	fd := int(c.GetFd())
 	for {
 		err := c.buffer.ReadFromFD(fd)
@@ -56,14 +67,26 @@ func (c *Conn) Read() error {
 			return err
 		}
 
-		err = c.server.decoder.Decode(c)
-		if err != nil {
-			return err
+		if c.server.options.decoder == nil {
+			c.server.handler.OnMessage(c, c.buffer.ReadAll())
+		} else {
+			var handle = func(bytes []byte) {
+				c.server.handler.OnMessage(c, bytes)
+			}
+			err = c.server.options.decoder.Decode(c.buffer, handle)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
 
-// Write 写入数据
+// WriteWithEncoder 使用编码器写入
+func (c *Conn) WriteWithEncoder(bytes []byte) error {
+	return c.server.options.encoder.EncodeToWriter(c, bytes)
+}
+
+// Write 写入数据 todo 这里可能未能把所有数据写进去
 func (c *Conn) Write(bytes []byte) (int, error) {
 	return syscall.Write(int(c.fd), bytes)
 }
@@ -71,10 +94,12 @@ func (c *Conn) Write(bytes []byte) (int, error) {
 // Close 关闭连接
 func (c *Conn) Close() error {
 	// 从epoll监听的文件描述符中删除
-	err := closeFD(int(c.fd))
+	err := c.server.netpoll.closeFD(int(c.fd))
 	if err != nil {
 		log.Error(err)
 	}
+	// stop timer
+	c.timer.Stop()
 
 	// 从conns中删除conn
 	c.server.conns.Delete(c.fd)
@@ -87,7 +112,7 @@ func (c *Conn) Close() error {
 
 // CloseRead 关闭连接
 func (c *Conn) CloseRead() error {
-	err := closeFDRead(int(c.fd))
+	err := c.server.netpoll.closeFDRead(int(c.fd))
 	if err != nil {
 		log.Error(err)
 	}

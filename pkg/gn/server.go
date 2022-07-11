@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
-	"time"
 )
 
 var (
@@ -20,104 +19,6 @@ type Handler interface {
 	OnConnect(c *Conn)               // OnConnect 当TCP长连接建立成功是回调
 	OnMessage(c *Conn, bytes []byte) // OnMessage 当客户端有数据写入是回调
 	OnClose(c *Conn, err error)      // OnClose 当客户端主动断开链接或者超时时回调,err返回关闭的原因
-}
-
-// options Server初始化参数
-type options struct {
-	readBufferLen   int           // 所读取的客户端包的最大长度，客户端发送的包不能超过这个长度，默认值是1024字节
-	acceptGNum      int           // 处理接受请求的goroutine数量
-	ioGNum          int           // 处理io的goroutine数量
-	ioEventQueueLen int           // io事件队列长度
-	timeoutTicker   time.Duration // 超时时间检查间隔
-	timeout         time.Duration // 超时时间
-}
-
-type Option interface {
-	apply(*options)
-}
-
-type funcServerOption struct {
-	f func(*options)
-}
-
-func (fdo *funcServerOption) apply(do *options) {
-	fdo.f(do)
-}
-
-func newFuncServerOption(f func(*options)) *funcServerOption {
-	return &funcServerOption{
-		f: f,
-	}
-}
-
-// WithReadBufferLen 设置缓存区大小
-func WithReadBufferLen(len int) Option {
-	return newFuncServerOption(func(o *options) {
-		if len <= 0 {
-			panic("acceptGNum must greater than 0")
-		}
-		o.readBufferLen = len
-	})
-}
-
-// WithAcceptGNum 设置建立连接的goroutine数量
-func WithAcceptGNum(num int) Option {
-	return newFuncServerOption(func(o *options) {
-		if num <= 0 {
-			panic("acceptGNum must greater than 0")
-		}
-		o.acceptGNum = num
-	})
-}
-
-// WithIOGNum 设置处理IO的goroutine数量
-func WithIOGNum(num int) Option {
-	return newFuncServerOption(func(o *options) {
-		if num <= 0 {
-			panic("IOGNum must greater than 0")
-		}
-		o.ioGNum = num
-	})
-}
-
-// WithIOEventQueueLen 设置IO事件队列长度，默认值是1024
-func WithIOEventQueueLen(num int) Option {
-	return newFuncServerOption(func(o *options) {
-		if num <= 0 {
-			panic("ioEventQueueLen must greater than 0")
-		}
-		o.ioEventQueueLen = num
-	})
-}
-
-// WithTimeout 设置TCP超时检查的间隔时间以及超时时间
-func WithTimeout(timeoutTicker, timeout time.Duration) Option {
-	return newFuncServerOption(func(o *options) {
-		if timeoutTicker <= 0 {
-			panic("timeoutTicker must greater than 0")
-		}
-		if timeout <= 0 {
-			panic("timeoutTicker must greater than 0")
-		}
-
-		o.timeoutTicker = timeoutTicker
-		o.timeout = timeout
-	})
-}
-
-func getOptions(opts ...Option) *options {
-	cpuNum := runtime.NumCPU() //获取cpu个数  同类型 runtime.GOMAXPROCS(1)指定golang 只使用1核
-	options := &options{
-		readBufferLen:   1024,
-		acceptGNum:      cpuNum,
-		ioGNum:          cpuNum,
-		ioEventQueueLen: 1024,
-	}
-
-	for _, o := range opts {
-		o.apply(options)
-	}
-	return options
 }
 
 const (
@@ -133,10 +34,10 @@ type event struct {
 
 // Server TCP服务
 type Server struct {
+	netpoll        netpoll      // 具体操作系统网络实现
 	options        *options     // 服务参数
 	readBufferPool *sync.Pool   // 读缓存区内存池
 	handler        Handler      // 注册的处理
-	decoder        Decoder      // 解码器
 	ioEventQueues  []chan event // IO事件队列集合
 	ioQueueNum     int32        // IO事件队列集合数量
 	conns          sync.Map     // TCP长连接管理
@@ -148,7 +49,7 @@ type Server struct {
 //var numCalcsCreated int32
 
 // NewServer 创建server服务器
-func NewServer(address string, handler Handler, decoder Decoder, opts ...Option) (*Server, error) {
+func NewServer(address string, handler Handler, opts ...Option) (*Server, error) {
 	options := getOptions(opts...)
 
 	// 初始化读缓存区内存池
@@ -163,7 +64,7 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 	}
 
 	// 初始化epoll网络
-	err := listen(address)
+	netpoll, err := newNetpoll(address)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -176,10 +77,10 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 	}
 
 	return &Server{
+		netpoll:        netpoll,
 		options:        options,
 		readBufferPool: readBufferPool,
 		handler:        handler,
-		decoder:        decoder,
 		ioEventQueues:  ioEventQueues,
 		ioQueueNum:     int32(options.ioGNum),
 		conns:          sync.Map{},
@@ -202,7 +103,6 @@ func (s *Server) Run() {
 	log.Info("gn server run")
 	s.startAccept()
 	s.startIOConsumer()
-	s.checkTimeout()
 	s.startIOProducer()
 }
 
@@ -237,7 +137,7 @@ func (s *Server) startIOProducer() {
 			log.Error("stop producer")
 			return
 		default:
-			events, err := getEvents(msec)
+			events, err := s.netpoll.getEvents(msec)
 			if err != nil {
 				log.Error(err)
 			}
@@ -273,7 +173,7 @@ func (s *Server) accept() {
 		case <-s.stop:
 			return
 		default:
-			nfd, addr, err := accept()
+			nfd, addr, err := s.netpoll.accept()
 			if err != nil {
 				log.Error(err)
 				continue
@@ -331,28 +231,6 @@ func (s *Server) consumeIOEvent(queue chan event) {
 	}
 }
 
-// checkTimeout 定时检查超时的TCP长连接
-func (s *Server) checkTimeout() {
-	if s.options.timeout == 0 || s.options.timeoutTicker == 0 {
-		return
-	}
-	log.Info(fmt.Sprintf("check timeout goroutine run,check_time:%v,timeout:%v", s.options.timeoutTicker, s.options.timeout))
-	go func() {
-		ticker := time.NewTicker(s.options.timeoutTicker)
-		for {
-			select {
-			case <-s.stop:
-				return
-			case <-ticker.C:
-				s.conns.Range(func(key, value interface{}) bool {
-					c := value.(*Conn)
-
-					if time.Now().Sub(c.lastReadTime) > s.options.timeout {
-						s.handleEvent(event{FD: c.fd, Type: EventTimeout})
-					}
-					return true
-				})
-			}
-		}
-	}()
+func (s *Server) handleTimeoutEvent(fd int32) {
+	s.handleEvent(event{FD: fd, Type: EventTimeout})
 }

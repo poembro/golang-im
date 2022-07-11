@@ -82,7 +82,7 @@ func (c *Conn) Write(bytes []byte) error {
 	defer c.FdMutex.Unlock()
 
 	if c.CoonType == CoonTypeTCP {
-		return encoder.EncodeToWriter(c.TCP, bytes)
+		return c.TCP.WriteWithEncoder(bytes)
 	} else if c.CoonType == ConnTypeWS {
 		err := c.WS.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
 		if err != nil {

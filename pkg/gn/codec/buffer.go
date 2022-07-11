@@ -1,4 +1,4 @@
-package gn
+package codec
 
 import (
 	"errors"
@@ -81,6 +81,12 @@ func (b *Buffer) Read(offset, limit int) ([]byte, error) {
 	buf := b.buf[b.start : b.start+limit]
 	b.start += limit
 	return buf, nil
+}
+
+// ReadAll 读取所有字节
+func (b *Buffer) ReadAll() []byte {
+	buf, _ := b.Read(b.start, b.end)
+	return buf
 }
 
 // reset 重新设置缓存区（将有用字节前移）

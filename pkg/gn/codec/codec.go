@@ -1,4 +1,4 @@
-package gn
+package codec
 
 import (
 	"encoding/binary"
@@ -9,13 +9,15 @@ import (
 
 // Decoder 解码器
 type Decoder interface {
-	Decode(c *Conn) error
+	Decode(*Buffer, func([]byte)) error
 }
 
 // Encoder 编码器
 type Encoder interface {
-	EncodeToFD(fd int32, bytes []byte) error
+	EncodeToWriter(w io.Writer, bytes []byte) error
 }
+
+////////////////// headerLenDecoder //////////////////////
 
 type headerLenDecoder struct {
 	headerLen int // TCP包的头部长度，用来描述这个包的字节长度
@@ -35,8 +37,7 @@ func NewHeaderLenDecoder(headerLen int) Decoder {
 }
 
 // Decode 解码 (golang-im自定义一下)
-func (d *headerLenDecoder) Decode(c *Conn) error {
-	buffer := c.GetBuffer()
+func (d *headerLenDecoder) Decode(buffer *Buffer, handle func([]byte)) error {
 	for {
 		header, err := buffer.Seek(d.headerLen)
 		if err == ErrNotEnough {
@@ -53,9 +54,11 @@ func (d *headerLenDecoder) Decode(c *Conn) error {
 			return nil
 		}
 
-		c.server.handler.OnMessage(c, body)
+		handle(body)
 	}
 }
+
+/////////////////// headerLenEncoder /////////////////////
 
 type headerLenEncoder struct {
 	headerLen       int        // TCP包的头部长度，用来描述这个包的字节长度
